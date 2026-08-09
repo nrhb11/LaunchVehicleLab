@@ -83,6 +83,10 @@ git clone https://github.com/nrhb11/LaunchVehicleLab.git
 cd LaunchVehicleLab
 ```
 
+On macOS, `~/Developer/LaunchVehicleLab` expands to a local path such as
+`/Users/your-name/Developer/LaunchVehicleLab`. This is the canonical working
+location; do not keep a second active clone in iCloud Documents or Desktop.
+
 Recommended Windows location:
 
 ```powershell
@@ -154,7 +158,7 @@ Activate the virtual environment before running commands.
 macOS/Linux:
 
 ```bash
-cd /path/to/LaunchVehicleLab
+cd ~/Developer/LaunchVehicleLab
 source venv/bin/activate
 ```
 
@@ -208,7 +212,7 @@ GitHub is the authoritative shared copy. Use the same sequence on every device.
 Before starting work:
 
 ```bash
-cd /path/to/LaunchVehicleLab
+cd ~/Developer/LaunchVehicleLab
 git status
 git pull --ff-only
 source venv/bin/activate  # macOS/Linux
@@ -275,7 +279,9 @@ Use this division of responsibility:
 | Exported reports or personal notes | iCloud if desired |
 
 If a repository currently lives inside an iCloud-synchronized folder, finish
-and push all work, then clone a fresh working copy under `~/Developer`.
+and push all work, clone a fresh working copy under `~/Developer`, verify its
+tests, and only then delete the old synchronized copy. Clone rather than moving
+the directory so the new working tree starts from GitHub's verified state.
 
 ## Troubleshooting
 
