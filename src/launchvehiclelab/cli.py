@@ -3,7 +3,7 @@
 import argparse
 import json
 from collections.abc import Sequence
-from math import radians
+from math import pi, radians
 
 from launchvehiclelab import __version__
 from launchvehiclelab.adapters import load_project, save_project
@@ -17,9 +17,12 @@ from launchvehiclelab.core import (
     MissionSpec,
     OrbitTarget,
     StageSpec,
+    calculate_aerodynamics,
     calculate_delta_v_budget,
     ideal_delta_v,
     optimize_two_stage,
+    simulate_ascent_trajectory,
+    us_standard_atmosphere_1976,
 )
 
 
@@ -86,6 +89,33 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Inspect and display contents of a saved .lvlab project file.",
     )
     inspect_parser.add_argument("--file", type=str, required=True, help="Path to .lvlab project file")
+
+    # Subcommand: atmosphere (V0.3)
+    atm_parser = subparsers.add_parser(
+        "atmosphere",
+        help="Query 1976 US Standard Atmosphere thermodynamic state at any altitude.",
+    )
+    atm_parser.add_argument("--altitude-m", type=float, required=True, help="Geometric altitude above sea level in metres")
+
+    # Subcommand: aerodynamics (V0.3)
+    aero_parser = subparsers.add_parser(
+        "aerodynamics",
+        help="Calculate Mach number, dynamic pressure, CD, and drag force.",
+    )
+    aero_parser.add_argument("--altitude-m", type=float, required=True, help="Geometric altitude in metres")
+    aero_parser.add_argument("--velocity-m-per-s", type=float, required=True, help="Flight velocity in m/s")
+    aero_parser.add_argument("--diameter-m", type=float, default=1.4, help="Vehicle reference diameter in metres")
+
+    # Subcommand: simulate-trajectory (V0.4)
+    traj_parser = subparsers.add_parser(
+        "simulate-trajectory",
+        help="Simulate complete 0-to-orbit numerical ascent flight trajectory and event history.",
+    )
+    traj_parser.add_argument("--payload-kg", type=float, default=500.0, help="Payload mass in kg")
+    traj_parser.add_argument("--altitude-m", type=float, default=500_000.0, help="Target orbit altitude in metres")
+    traj_parser.add_argument("--stage1-diameter-m", type=float, default=1.4, help="Stage 1 diameter in metres")
+    traj_parser.add_argument("--stage2-diameter-m", type=float, default=1.4, help="Stage 2 diameter in metres")
+    traj_parser.add_argument("--export-file", type=str, default=None, help="Optional export path for .lvlab project file")
 
     return parser
 
@@ -241,7 +271,7 @@ def _run_coupled_sizing(args: argparse.Namespace) -> dict[str, object]:
     )
 
     if args.export_file:
-        saved_path = save_project(result, args.export_file)
+        save_project(result, args.export_file)
 
     return {
         "schema_version": "0.2",
@@ -295,6 +325,88 @@ def _run_inspect_project(args: argparse.Namespace) -> dict[str, object]:
     return load_project(args.file)
 
 
+def _run_atmosphere(args: argparse.Namespace) -> dict[str, object]:
+    atm = us_standard_atmosphere_1976(args.altitude_m)
+    return {
+        "schema_version": "0.3",
+        "model": "us_standard_atmosphere_1976_v0.3",
+        "inputs": {"altitude_m": args.altitude_m},
+        "outputs": {
+            "temperature_k": atm.temperature_k,
+            "pressure_pa": atm.pressure_pa,
+            "density_kg_per_m3": atm.density_kg_per_m3,
+            "speed_of_sound_m_per_s": atm.speed_of_sound_m_per_s,
+        },
+    }
+
+
+def _run_aerodynamics(args: argparse.Namespace) -> dict[str, object]:
+    atm = us_standard_atmosphere_1976(args.altitude_m)
+    ref_area = (pi * (args.diameter_m**2)) / 4.0
+    aero = calculate_aerodynamics(args.velocity_m_per_s, atm, ref_area)
+    return {
+        "schema_version": "0.3",
+        "model": "aerodynamic_loads_v0.3",
+        "inputs": {
+            "altitude_m": args.altitude_m,
+            "velocity_m_per_s": args.velocity_m_per_s,
+            "diameter_m": args.diameter_m,
+            "reference_area_m2": ref_area,
+        },
+        "outputs": {
+            "mach": aero.mach,
+            "dynamic_pressure_pa": aero.dynamic_pressure_pa,
+            "drag_coefficient": aero.drag_coefficient,
+            "drag_force_n": aero.drag_force_n,
+        },
+    }
+
+
+def _run_simulate_trajectory(args: argparse.Namespace) -> dict[str, object]:
+    mission = MissionSpec(
+        payload_mass_kg=args.payload_kg,
+        target=OrbitTarget(altitude_m=args.altitude_m),
+    )
+    vehicle = run_coupled_sizing(
+        mission=mission,
+        stage1_diameter_m=args.stage1_diameter_m,
+        stage2_diameter_m=args.stage2_diameter_m,
+    )
+    traj = simulate_ascent_trajectory(vehicle)
+
+    if args.export_file:
+        save_project(vehicle, args.export_file, trajectory=traj)
+
+    return {
+        "schema_version": "0.4",
+        "model": "ascent_trajectory_simulation_v0.4",
+        "inputs": {
+            "payload_mass_kg": args.payload_kg,
+            "target_altitude_m": args.altitude_m,
+        },
+        "outputs": {
+            "max_q_pa": traj.max_q_pa,
+            "max_q_altitude_m": traj.max_q_alt_m,
+            "max_q_time_s": traj.max_q_time_s,
+            "max_acceleration_g": traj.max_acceleration_g,
+            "total_flight_time_s": traj.total_flight_time_s,
+            "final_orbit_altitude_m": traj.final_orbit_altitude_m,
+            "final_orbit_velocity_m_per_s": traj.final_orbit_velocity_m_per_s,
+            "events": [
+                {
+                    "name": ev.name,
+                    "time_s": ev.time_s,
+                    "altitude_m": ev.altitude_m,
+                    "velocity_m_per_s": ev.velocity_m_per_s,
+                    "description": ev.description,
+                }
+                for ev in traj.events
+            ],
+        },
+        "exported_file": str(args.export_file) if args.export_file else None,
+    }
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return a process exit code."""
 
@@ -312,6 +424,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = _run_coupled_sizing(args)
         elif args.command == "inspect-project":
             result = _run_inspect_project(args)
+        elif args.command == "atmosphere":
+            result = _run_atmosphere(args)
+        elif args.command == "aerodynamics":
+            result = _run_aerodynamics(args)
+        elif args.command == "simulate-trajectory":
+            result = _run_simulate_trajectory(args)
         else:  # pragma: no cover - argparse enforces known commands.
             parser.error(f"unsupported command: {args.command}")
     except (ValueError, FileNotFoundError) as error:

@@ -4,14 +4,18 @@ import json
 from pathlib import Path
 
 from launchvehiclelab import __version__
-from launchvehiclelab.core.domain import CoupledVehicleResult
+from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryResult
 
-PERSISTENCE_SCHEMA_VERSION = "0.2"
+PERSISTENCE_SCHEMA_VERSION = "0.4"
+SUPPORTED_SCHEMA_VERSIONS = {"0.2", "0.4"}
 
 
-def _serialize_vehicle(result: CoupledVehicleResult) -> dict[str, object]:
-    """Convert a CoupledVehicleResult object into a serializable dictionary."""
-    return {
+def _serialize_vehicle(
+    result: CoupledVehicleResult,
+    trajectory: TrajectoryResult | None = None,
+) -> dict[str, object]:
+    """Convert a CoupledVehicleResult object and optional trajectory into a serializable dictionary."""
+    data: dict[str, object] = {
         "schema_version": PERSISTENCE_SCHEMA_VERSION,
         "generator": f"LaunchVehicleLab {__version__}",
         "mission": {
@@ -105,14 +109,41 @@ def _serialize_vehicle(result: CoupledVehicleResult) -> dict[str, object]:
         ],
     }
 
+    if trajectory is not None:
+        data["trajectory_simulation"] = {
+            "max_q_pa": trajectory.max_q_pa,
+            "max_q_time_s": trajectory.max_q_time_s,
+            "max_q_alt_m": trajectory.max_q_alt_m,
+            "max_acceleration_g": trajectory.max_acceleration_g,
+            "total_flight_time_s": trajectory.total_flight_time_s,
+            "final_orbit_altitude_m": trajectory.final_orbit_altitude_m,
+            "final_orbit_velocity_m_per_s": trajectory.final_orbit_velocity_m_per_s,
+            "flight_events": [
+                {
+                    "name": ev.name,
+                    "time_s": ev.time_s,
+                    "altitude_m": ev.altitude_m,
+                    "velocity_m_per_s": ev.velocity_m_per_s,
+                    "description": ev.description,
+                }
+                for ev in trajectory.events
+            ],
+        }
 
-def save_project(result: CoupledVehicleResult, filepath: str | Path) -> Path:
-    """Serialize a CoupledVehicleResult to a schema-versioned .lvlab JSON file."""
+    return data
+
+
+def save_project(
+    result: CoupledVehicleResult,
+    filepath: str | Path,
+    trajectory: TrajectoryResult | None = None,
+) -> Path:
+    """Serialize a CoupledVehicleResult (and optional trajectory) to a schema-versioned .lvlab JSON file."""
     path = Path(filepath)
     if not path.name.endswith(".lvlab") and not path.name.endswith(".json"):
         path = path.with_suffix(".lvlab")
 
-    data = _serialize_vehicle(result)
+    data = _serialize_vehicle(result, trajectory=trajectory)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=True)
     return path
@@ -131,9 +162,9 @@ def load_project(filepath: str | Path) -> dict[str, object]:
         raise ValueError("Invalid project file format: root must be a JSON object")
 
     version = data.get("schema_version")
-    if version != PERSISTENCE_SCHEMA_VERSION:
+    if version not in SUPPORTED_SCHEMA_VERSIONS:
         raise ValueError(
-            f"Unsupported project schema version '{version}'. Expected '{PERSISTENCE_SCHEMA_VERSION}'."
+            f"Unsupported project schema version '{version}'. Supported: {sorted(SUPPORTED_SCHEMA_VERSIONS)}."
         )
 
     return data

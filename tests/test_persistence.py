@@ -33,7 +33,7 @@ def test_persistence_roundtrip(tmp_path: Path) -> None:
     assert saved_path.exists()
     loaded_data = load_project(saved_path)
 
-    assert loaded_data["schema_version"] == "0.2"
+    assert loaded_data["schema_version"] == "0.4"
     assert loaded_data["mission"]["payload_mass_kg"] == 500.0
     assert loaded_data["vehicle_summary"]["gross_liftoff_weight_kg"] == pytest.approx(
         result.gross_liftoff_weight_kg, rel=1e-6

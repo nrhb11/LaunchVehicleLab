@@ -180,3 +180,69 @@ class CoupledVehicleResult:
     gross_liftoff_weight_kg: float
     payload_ratio_percent: float
     iterations_to_converge: int
+
+
+# --- V0.3 & V0.4 Atmosphere, Aerodynamics, and Trajectory Models ---
+
+
+@dataclass(frozen=True, slots=True)
+class AtmosphereState:
+    """Local ambient atmospheric thermodynamic properties (US Standard Atmosphere 1976)."""
+
+    altitude_m: float
+    temperature_k: float
+    pressure_pa: float
+    density_kg_per_m3: float
+    speed_of_sound_m_per_s: float
+
+
+@dataclass(frozen=True, slots=True)
+class AerodynamicState:
+    """Instantaneous flight aerodynamic loads, Mach number, and dynamic pressure."""
+
+    mach: float
+    dynamic_pressure_pa: float
+    drag_coefficient: float
+    drag_force_n: float
+
+
+@dataclass(frozen=True, slots=True)
+class TrajectoryPoint:
+    """State vector sample at a discrete flight trajectory timestep."""
+
+    time_s: float
+    altitude_m: float
+    downrange_m: float
+    velocity_m_per_s: float
+    flight_path_angle_rad: float
+    mass_kg: float
+    thrust_n: float
+    dynamic_pressure_pa: float
+    mach: float
+    acceleration_g: float
+
+
+@dataclass(frozen=True, slots=True)
+class FlightEvent:
+    """Discrete mission milestone timestamp and flight state."""
+
+    name: str
+    time_s: float
+    altitude_m: float
+    velocity_m_per_s: float
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class TrajectoryResult:
+    """Complete 0-to-Orbit numerical flight simulation history and key observables."""
+
+    points: list[TrajectoryPoint]
+    events: list[FlightEvent]
+    max_q_pa: float
+    max_q_time_s: float
+    max_q_alt_m: float
+    max_acceleration_g: float
+    final_orbit_altitude_m: float
+    final_orbit_velocity_m_per_s: float
+    total_flight_time_s: float

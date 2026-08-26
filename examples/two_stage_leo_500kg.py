@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LaunchVehicleLab Canonical Benchmark Case Study (V0.2 Milestone).
+"""LaunchVehicleLab Canonical Benchmark Case Study (V0.4 Numerical Engine).
 
 Mission: 500 kg payload into a 500 km circular Low-Earth Orbit (LEO).
 Launch site: 28.5 deg North latitude (e.g. Cape Canaveral / Wenchang).
@@ -16,14 +16,15 @@ from launchvehiclelab.core import (
     MissionSpec,
     OrbitTarget,
     calculate_delta_v_budget,
+    simulate_ascent_trajectory,
 )
 
 
 def run_benchmark() -> None:
-    print("=" * 76)
-    print("  LaunchVehicleLab V0.2 — Multidisciplinary Coupled Sizing Benchmark")
+    print("=" * 78)
+    print("  LaunchVehicleLab V0.4 — Multidisciplinary Sizing & Numerical Flight Engine")
     print("  Mission: 500 kg payload to 500 km circular Low-Earth Orbit (LEO)")
-    print("=" * 76)
+    print("=" * 78)
 
     # 1. Mission Specification
     payload_mass_kg = 500.0
@@ -59,7 +60,7 @@ def run_benchmark() -> None:
     stage1_combo = PROPELLANT_COMBINATIONS["KEROLOX"]
     stage2_combo = PROPELLANT_COMBINATIONS["METHALOX"]
 
-    result = run_coupled_sizing(
+    vehicle = run_coupled_sizing(
         mission=mission,
         stage1_combo=stage1_combo,
         stage2_combo=stage2_combo,
@@ -69,15 +70,15 @@ def run_benchmark() -> None:
     )
 
     print("\n[2] Converged Launch Vehicle Overview:")
-    print(f"  ► Gross Liftoff Weight (GLOW): {result.gross_liftoff_weight_kg:10.2f} kg "
-          f"({result.gross_liftoff_weight_kg / 1000.0:.2f} metric tons)")
-    print(f"  ► Payload Ratio (Payload/GLOW):{result.payload_ratio_percent:9.2f} %")
-    print(f"  ► Total Vehicle Stack Length:  {result.vehicle_geometry.total_length_m:9.2f} m")
-    print(f"  ► Vehicle Fineness Ratio (L/D):{result.vehicle_geometry.fineness_ratio:9.2f}")
-    print(f"  ► Sizing Convergence Loops:    {result.iterations_to_converge:9d} iterations")
+    print(f"  ► Gross Liftoff Weight (GLOW): {vehicle.gross_liftoff_weight_kg:10.2f} kg "
+          f"({vehicle.gross_liftoff_weight_kg / 1000.0:.2f} metric tons)")
+    print(f"  ► Payload Ratio (Payload/GLOW):{vehicle.payload_ratio_percent:9.2f} %")
+    print(f"  ► Total Vehicle Stack Length:  {vehicle.vehicle_geometry.total_length_m:9.2f} m")
+    print(f"  ► Vehicle Fineness Ratio (L/D):{vehicle.vehicle_geometry.fineness_ratio:9.2f}")
+    print(f"  ► Sizing Convergence Loops:    {vehicle.iterations_to_converge:9d} iterations")
 
-    # 4. Stage-by-Stage Detailed Breakdown
-    for stage in [result.stage1, result.stage2]:
+    # 4. Stage-by-Stage Breakdown
+    for stage in [vehicle.stage1, vehicle.stage2]:
         print(f"\n[3] {stage.name} ({stage.propellant_combo.name}):")
         print(f"    • Allocated Delta-V:         {stage.sizing.delta_v_m_per_s:8.2f} m/s")
         print(f"    • Total Loaded Propellant:   {stage.propellant_mass_kg:8.2f} kg")
@@ -85,30 +86,34 @@ def run_benchmark() -> None:
         print(f"        - Fuel Mass:             {stage.fuel_mass_kg:8.2f} kg")
         print(f"    • Stage Dry Structural Mass: {stage.mass_breakdown.total_dry_mass_kg:8.2f} kg "
               f"(Effective ε = {stage.effective_structural_fraction * 100.0:.2f}%)")
-        print(f"        - Tanks & Bulkheads:     {stage.mass_breakdown.tanks_mass_kg:8.2f} kg")
-        print(f"        - Propulsion & Plumbing: {stage.mass_breakdown.propulsion_mass_kg:8.2f} kg")
-        print(f"        - Avionics & Electrical: {stage.mass_breakdown.avionics_mass_kg:8.2f} kg")
-        print(f"        - Unusable & Margin:     {stage.mass_breakdown.residuals_and_margin_kg:8.2f} kg")
         print(f"    • Stage Geometry:            Length = {stage.geometry.total_length_m:.2f} m, Diameter = {stage.geometry.diameter_m:.2f} m")
-        print(f"        - Oxidizer Tank Length:  {stage.geometry.oxidizer_tank.total_length_m:.2f} m")
-        print(f"        - Fuel Tank Length:      {stage.geometry.fuel_tank.total_length_m:.2f} m")
 
-    # 5. Fairing Geometry
-    fairing = result.vehicle_geometry.fairing
-    print("\n[4] Payload Fairing:")
-    print(f"    • Outer Diameter:            {fairing.diameter_m:8.2f} m")
-    print(f"    • Total Length:              {fairing.total_length_m:8.2f} m")
-    print(f"    • Internal Payload Volume:   {fairing.internal_volume_m3:8.2f} m^3")
+    # 5. Numerical Trajectory Simulation
+    print("\n[4] Running 3DOF Ascent Flight Simulation...")
+    traj = simulate_ascent_trajectory(vehicle)
 
-    # 6. Save Project Persistence File
+    print("\n  ==================== Flight Mission Event Timeline ====================")
+    for ev in traj.events:
+        print(f"    T+{ev.time_s:6.1f} s | Alt: {ev.altitude_m / 1000.0:6.1f} km | Vel: {ev.velocity_m_per_s:7.1f} m/s | {ev.name}")
+        if ev.description:
+            print(f"               └─ {ev.description}")
+
+    print("\n  ► Aerodynamic & Dynamic Flight Metrics:")
+    print(f"    • Maximum Dynamic Pressure (Max-Q): {traj.max_q_pa / 1000.0:6.2f} kPa (at T+{traj.max_q_time_s:.1f} s, Alt: {traj.max_q_alt_m / 1000.0:.1f} km)")
+    print(f"    • Peak Axial Acceleration:          {traj.max_acceleration_g:6.2f} g")
+    print(f"    • Final Orbit Injection Altitude:   {traj.final_orbit_altitude_m / 1000.0:6.1f} km")
+    print(f"    • Final Orbit Insertion Velocity:   {traj.final_orbit_velocity_m_per_s:6.1f} m/s")
+    print(f"    • Total Mission Ascent Duration:    {traj.total_flight_time_s:6.1f} s ({traj.total_flight_time_s / 60.0:.1f} min)")
+
+    # 6. Save Complete Project Persistence File
     output_path = Path(__file__).parent / "two_stage_leo_500kg.lvlab"
-    saved = save_project(result, output_path)
+    saved = save_project(vehicle, output_path, trajectory=traj)
     print(f"\n[5] Project Persistence:")
-    print(f"  ► Project successfully exported to: {saved.name}")
+    print(f"  ► Full mission & flight trajectory exported to: {saved.name}")
 
-    print("\n" + "=" * 76)
-    print("  Benchmark Run Complete — Multidisciplinary Sizing Verified & Saved.")
-    print("=" * 76)
+    print("\n" + "=" * 78)
+    print("  Benchmark Run Complete — 0-to-Orbit Trajectory Numerical Engine Verified.")
+    print("=" * 78)
 
 
 if __name__ == "__main__":

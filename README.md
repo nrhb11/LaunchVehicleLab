@@ -106,15 +106,14 @@ Validation ◄── Optimization ◄── Stability / Guidance ◄── Traje
   - [x] Subsystem mass models (structural fraction $\epsilon$, engine $T/W$, avionics, fairing in `core/mass.py`).
   - [x] Tank sizing (propellant volume from densities & $O/F$ mixture ratio in `core/geometry.py`).
   - [x] Coupled mass-geometry sizing convergence coordinator (`application/coordinator.py`).
-  - [x] Human-readable `.lvlab` JSON project file format (`adapters/persistence.py`).
-- [ ] **V0.3 — Environment, Atmosphere & Low-Order Aerodynamics**
-  - [ ] US Standard Atmosphere 1976 implementation (temperature, pressure, density, speed of sound vs altitude).
-  - [ ] Dynamic pressure $q(t)$ calculation and Max-$Q$ detection.
-  - [ ] Subsonic / transonic / supersonic drag coefficient $C_D(Ma)$ parameterization.
-- [ ] **V0.4 — Numerical Trajectory Engine & Event Handling**
-  - [ ] SciPy `solve_ivp` point-mass ascent trajectory simulation.
-  - [ ] Discrete event system (liftoff, Max-$Q$, MECO, stage separation, fairing jettison, SECO, orbit injection).
-  - [ ] Numerical convergence and integration tolerance study.
+- [x] **V0.3 — Environment, Atmosphere & Low-Order Aerodynamics** *(Completed)*
+  - [x] US Standard Atmosphere 1976 implementation (temperature, pressure, density, speed of sound vs altitude in `core/atmosphere.py`).
+  - [x] Dynamic pressure $q(t)$ calculation and Max-$Q$ detection (`core/aerodynamics.py`).
+  - [x] Subsonic / transonic / supersonic drag coefficient $C_D(Ma)$ parameterization (`core/aerodynamics.py`).
+- [x] **V0.4 — Numerical Trajectory Engine & Event Handling** *(Completed)*
+  - [x] High-precision 3DOF point-mass ascent trajectory simulation engine with gravity turn guidance (`core/trajectory.py`).
+  - [x] Discrete event state machine (Liftoff, Pitchover, Transonic, Max-$Q$, MECO, Staging, Fairing Jettison, SECO, Orbit Injection).
+  - [x] Canonical 0-to-Orbit numerical flight simulation benchmark study (`examples/two_stage_leo_500kg.py`).
 
 ### Phase 2: Desktop Application & Multidisciplinary Expansion
 - [ ] **V0.5 — PySide6/QML Desktop Application Beta**
@@ -267,6 +266,21 @@ Inspect a saved `.lvlab` project file:
 lvlab inspect-project --file my_launcher.lvlab
 ```
 
+Query 1976 US Standard Atmosphere at any altitude:
+```bash
+lvlab atmosphere --altitude-m 11000
+```
+
+Compute dynamic pressure and aerodynamic drag:
+```bash
+lvlab aerodynamics --altitude-m 11000 --velocity-m-per-s 600 --diameter-m 1.4
+```
+
+Simulate 0-to-Orbit 3DOF ascent flight trajectory:
+```bash
+lvlab simulate-trajectory --payload-kg 500 --altitude-m 500000 --export-file flight.lvlab
+```
+
 ### 5. Python API Usage
 
 ```python
@@ -276,6 +290,7 @@ from launchvehiclelab.core import (
     PROPELLANT_COMBINATIONS,
     MissionSpec,
     OrbitTarget,
+    simulate_ascent_trajectory,
 )
 
 # 1. Define mission: 500 kg to 500 km LEO
@@ -285,8 +300,8 @@ mission = MissionSpec(
     launch_latitude_rad=0.4974,  # 28.5 deg
 )
 
-# 2. Run coupled multidisciplinary sizing
-result = run_coupled_sizing(
+# 2. Run coupled multidisciplinary vehicle sizing
+vehicle = run_coupled_sizing(
     mission=mission,
     stage1_combo=PROPELLANT_COMBINATIONS["KEROLOX"],
     stage2_combo=PROPELLANT_COMBINATIONS["METHALOX"],
@@ -294,17 +309,19 @@ result = run_coupled_sizing(
     stage2_diameter_m=1.4,
 )
 
-print(f"Converged GLOW: {result.gross_liftoff_weight_kg:.1f} kg")
-print(f"Total Stack Length: {result.vehicle_geometry.total_length_m:.2f} m")
-print(f"Fineness Ratio (L/D): {result.vehicle_geometry.fineness_ratio:.1f}")
+# 3. Simulate continuous 3DOF ascent flight trajectory
+trajectory = simulate_ascent_trajectory(vehicle)
 
-# 3. Save project to schema-versioned JSON (.lvlab)
-save_project(result, "launcher.lvlab")
+print(f"Max-Q: {trajectory.max_q_pa / 1000.0:.2f} kPa at Alt {trajectory.max_q_alt_m / 1000.0:.1f} km")
+print(f"Orbit Insertion Vel: {trajectory.final_orbit_velocity_m_per_s:.1f} m/s")
+
+# 4. Save complete mission, geometry, and flight trajectory
+save_project(vehicle, "canonical_mission.lvlab", trajectory=trajectory)
 ```
 
 ### 6. Canonical Educational Benchmark Case Study
 
-Run the verified 500 kg to 500 km LEO launcher sizing study:
+Run the verified 500 kg to 500 km LEO launcher sizing & flight simulation study:
 ```bash
 python examples/two_stage_leo_500kg.py
 ```

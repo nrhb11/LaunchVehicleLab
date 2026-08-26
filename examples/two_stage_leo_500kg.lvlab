@@ -16,7 +16,7 @@
     "payload_mass_kg": 500.0,
     "target_altitude_m": 500000.0
   },
-  "schema_version": "0.2",
+  "schema_version": "0.4",
   "stages": [
     {
       "effective_structural_fraction": 0.08397069392644604,
@@ -74,6 +74,73 @@
       }
     }
   ],
+  "trajectory_simulation": {
+    "final_orbit_altitude_m": 394625.8,
+    "final_orbit_velocity_m_per_s": 7327.0,
+    "flight_events": [
+      {
+        "altitude_m": 0.0,
+        "description": "Vehicle liftoff from launch pad.",
+        "name": "Liftoff",
+        "time_s": 0.0,
+        "velocity_m_per_s": 0.0
+      },
+      {
+        "altitude_m": 238.6,
+        "description": "Pitchover schedule begun at t=12.1s.",
+        "name": "Gravity Turn Pitchover Program Initiated",
+        "time_s": 12.1,
+        "velocity_m_per_s": 40.3
+      },
+      {
+        "altitude_m": 6463.9,
+        "description": "Mach 1.0 passed at altitude 6.5 km.",
+        "name": "Transonic Crossing (Mach 1.0)",
+        "time_s": 58.2,
+        "velocity_m_per_s": 314.6
+      },
+      {
+        "altitude_m": 11031.3,
+        "description": "Maximum aerodynamic dynamic pressure of 39.57 kPa reached at 11.0 km.",
+        "name": "Max-Q (Peak Dynamic Pressure)",
+        "time_s": 74.9,
+        "velocity_m_per_s": 2869.2
+      },
+      {
+        "altitude_m": 74629.5,
+        "description": "Stage 1 propellant depleted. Burnout velocity: 2869.2 m/s.",
+        "name": "MECO (Main Engine Cutoff)",
+        "time_s": 174.0,
+        "velocity_m_per_s": 2869.2
+      },
+      {
+        "altitude_m": 77474.6,
+        "description": "Stage 1 jettisoned. Stage 2 ignited in vacuum.",
+        "name": "Stage 1 Separation & Stage 2 Ignition",
+        "time_s": 176.6,
+        "velocity_m_per_s": 2859.7
+      },
+      {
+        "altitude_m": 88160.6,
+        "description": "Fairing separated in vacuum at altitude 88.2 km.",
+        "name": "Payload Fairing Jettison",
+        "time_s": 186.6,
+        "velocity_m_per_s": 2903.4
+      },
+      {
+        "altitude_m": 394625.8,
+        "description": "Second Engine Cutoff. Orbit reached at altitude 394.6 km, velocity 7327.0 m/s.",
+        "name": "SECO & Target Orbit Insertion",
+        "time_s": 496.7,
+        "velocity_m_per_s": 7327.0
+      }
+    ],
+    "max_acceleration_g": 5.27,
+    "max_q_alt_m": 11031.3,
+    "max_q_pa": 39570.50563778504,
+    "max_q_time_s": 74.9,
+    "total_flight_time_s": 496.7
+  },
   "vehicle_geometry": {
     "fairing": {
       "diameter_m": 1.5,
