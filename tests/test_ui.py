@@ -7,6 +7,7 @@ import pytest
 from launchvehiclelab.ui.app import main as app_main
 from launchvehiclelab.ui.models import VehicleViewModel
 from launchvehiclelab.ui.widgets.rocket_canvas import RocketCanvas
+from launchvehiclelab.ui.widgets.scrubber_bar import FlightScrubberBar
 
 
 @pytest.fixture(scope="session")
@@ -62,15 +63,41 @@ def test_rocket_canvas_rendering(qapp: QApplication) -> None:
     vm = VehicleViewModel()
     vm.run_sizing_and_simulation()
     assert vm.current_vehicle is not None
+    assert vm.current_trajectory is not None
 
     canvas = RocketCanvas()
     canvas.resize(400, 600)
     canvas.set_vehicle(vm.current_vehicle)
+    canvas.set_trajectory(vm.current_trajectory)
+    canvas.set_flight_time(74.9)  # Max-Q time
 
-    # Render offscreen image to trigger paintEvent
     img = QImage(400, 600, QImage.Format.Format_ARGB32)
     canvas.render(img)
     assert not img.isNull()
+
+
+def test_flight_scrubber_bar(qapp: QApplication) -> None:
+    vm = VehicleViewModel()
+    vm.run_sizing_and_simulation()
+    assert vm.current_trajectory is not None
+
+    bar = FlightScrubberBar()
+    bar.resize(800, 50)
+    bar.set_trajectory(vm.current_trajectory)
+
+    scrub_times = []
+    bar.time_changed.connect(scrub_times.append)
+
+    # Trigger scrubber change
+    bar.track._update_time_from_pos(400.0)
+    assert len(scrub_times) == 1
+    assert scrub_times[0] > 0.0
+
+    # Toggle play/pause
+    bar.play()
+    assert bar._is_playing is True
+    bar.pause()
+    assert bar._is_playing is False
 
 
 def test_app_headless_entrypoint(qapp: QApplication) -> None:

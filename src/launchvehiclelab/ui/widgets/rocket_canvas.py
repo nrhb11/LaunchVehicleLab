@@ -1,4 +1,6 @@
-"""High-resolution 2D dimensioned rocket vector blueprint canvas widget."""
+"""Apple Final Cut Pro & CAD Studio inspired 2D vector rocket blueprint canvas."""
+
+from math import sin
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
@@ -9,33 +11,55 @@ from PySide6.QtGui import (
     QPainter,
     QPainterPath,
     QPen,
+    QRadialGradient,
 )
 from PySide6.QtWidgets import QWidget
 
-from launchvehiclelab.core.domain import CoupledVehicleResult
+from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryResult
 from launchvehiclelab.ui.theme import (
-    ACCENT_BLUE,
-    DARK_BG_MAIN,
-    DARK_BG_PANEL,
-    DARK_BORDER,
-    DARK_TEXT_MUTED,
-    DARK_TEXT_PRIMARY,
-    DARK_TEXT_SECONDARY,
+    BG_CANVAS,
+    BG_CARD,
+    BG_PANEL,
+    BORDER_ACCENT,
+    BORDER_SUBTLE,
+    COLOR_ALERT_CORAL,
+    COLOR_CYAN,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_FLIGHT_GREEN,
+    COLOR_METHANE_VIOLET,
+    COLOR_SUNSET_AMBER,
     PROPELLANT_COLORS,
+    SPACE_BLACK,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
 )
 
 
 class RocketCanvas(QWidget):
-    """Custom vector canvas dynamically drawing the entire dimensioned launch vehicle stack."""
+    """High-end studio CAD vector canvas drawing the active dimensioned rocket with exhaust plumes."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._vehicle: CoupledVehicleResult | None = None
-        self.setMinimumSize(320, 500)
-        self.setStyleSheet(f"background-color: {DARK_BG_PANEL}; border-radius: 8px;")
+        self._trajectory: TrajectoryResult | None = None
+        self._current_time_s: float = 0.0
+        self._flame_phase: float = 0.0
+
+        self.setMinimumSize(340, 520)
+        self.setStyleSheet(f"background-color: {SPACE_BLACK}; border: 1px solid {BORDER_SUBTLE}; border-radius: 12px;")
 
     def set_vehicle(self, vehicle: CoupledVehicleResult) -> None:
         self._vehicle = vehicle
+        self.update()
+
+    def set_trajectory(self, trajectory: TrajectoryResult) -> None:
+        self._trajectory = trajectory
+        self.update()
+
+    def set_flight_time(self, time_s: float) -> None:
+        self._current_time_s = time_s
+        self._flame_phase += 0.3
         self.update()
 
     def paintEvent(self, event) -> None:  # noqa: N802
@@ -45,23 +69,31 @@ class RocketCanvas(QWidget):
         w = self.width()
         h = self.height()
 
-        # Background grid
-        painter.fillRect(0, 0, w, h, QColor(DARK_BG_PANEL))
-        grid_pen = QPen(QColor(DARK_BORDER), 1, Qt.PenStyle.DotLine)
+        # 1. Background OLED Canvas with Aerospace Blueprint Grid
+        painter.fillRect(0, 0, w, h, QColor(SPACE_BLACK))
+
+        # Precision Engineering Dot Grid
+        grid_pen = QPen(QColor("#1f1f23"), 1)
         painter.setPen(grid_pen)
-        for gx in range(0, w, 40):
-            painter.drawLine(gx, 0, gx, h)
-        for gy in range(0, h, 40):
-            painter.drawLine(0, gy, w, gy)
+        for gx in range(0, w, 28):
+            for gy in range(0, h, 28):
+                painter.drawPoint(gx, gy)
+
+        # Crosshairs at corners
+        cross_pen = QPen(QColor(BORDER_SUBTLE), 1)
+        painter.setPen(cross_pen)
+        painter.drawLine(20, 20, 35, 20)
+        painter.drawLine(20, 20, 20, 35)
+        painter.drawLine(w - 20, 20, w - 35, 20)
+        painter.drawLine(w - 20, 20, w - 20, 35)
 
         if self._vehicle is None:
-            # Placeholder text
-            painter.setPen(QColor(DARK_TEXT_MUTED))
-            painter.setFont(QFont("-apple-system", 13))
+            painter.setPen(QColor(TEXT_MUTED))
+            painter.setFont(QFont("-apple-system", 13, QFont.Weight.Medium))
             painter.drawText(
                 QRectF(0, 0, w, h),
                 Qt.AlignmentFlag.AlignCenter,
-                "Ready to size vehicle.\nClick 'Size Rocket' to render blueprint.",
+                "Ready to Size Vehicle.\nClick 'Size Vehicle' to generate blueprint.",
             )
             return
 
@@ -69,66 +101,100 @@ class RocketCanvas(QWidget):
         geom = v.vehicle_geometry
         total_len = max(1.0, geom.total_length_m)
 
-        # Scale and Margins
-        margin_y = 50.0
-        margin_x = 70.0
-        drawable_h = h - 2.0 * margin_y
-        scale_y = drawable_h / total_len
-        # Width scale factor
-        max_d = max(geom.stage1.diameter_m, geom.fairing.diameter_m)
-        center_x = w * 0.42
+        # Flight State Evaluation
+        t = self._current_time_s
+        t_meco = 174.0
+        t_staging = 176.6
+        t_fairing = 186.6
+        t_seco = 496.7
 
-        # Drawing Cursor (starts at top of Fairing Nose)
-        cur_y = margin_y
+        is_s1_firing = (0.0 < t < t_meco)
+        is_staged = (t >= t_staging)
+        is_s2_firing = (t_staging <= t < t_seco)
+        is_fairing_open = (t >= t_fairing)
+
+        # Scaling Dimensions
+        margin_y = 60.0
+        drawable_h = h - 2.0 * margin_y - 40.0  # leave room for flame
+        scale_y = drawable_h / total_len
+        center_x = w * 0.42
 
         def m_to_px(meters: float) -> float:
             return meters * scale_y
 
         def d_to_px(diameter_m: float) -> float:
-            return max(16.0, diameter_m * scale_y * 2.2)
+            return max(18.0, diameter_m * scale_y * 2.3)
+
+        cur_y = margin_y
 
         # -------------------------------------------------------------
-        # 1. Payload Fairing
+        # 1. Payload Fairing / Satellite Deployment
         # -------------------------------------------------------------
         fairing = geom.fairing
         f_dia_px = d_to_px(fairing.diameter_m)
         f_len_px = m_to_px(fairing.total_length_m)
         f_nose_px = m_to_px(fairing.nose_cone_length_m)
-        f_cyl_px = max(4.0, f_len_px - f_nose_px)
 
-        # Fairing Path (Ogive Nose Cone + Cylinder)
-        fairing_path = QPainterPath()
-        top_pt = QPointF(center_x, cur_y)
-        left_shoulder = QPointF(center_x - f_dia_px / 2.0, cur_y + f_nose_px)
-        right_shoulder = QPointF(center_x + f_dia_px / 2.0, cur_y + f_nose_px)
-        left_base = QPointF(center_x - f_dia_px / 2.0, cur_y + f_len_px)
-        right_base = QPointF(center_x + f_dia_px / 2.0, cur_y + f_len_px)
+        if not is_fairing_open:
+            # Closed Carbon Composite Fairing with Gloss Specular Highlights
+            top_pt = QPointF(center_x, cur_y)
+            left_shoulder = QPointF(center_x - f_dia_px / 2.0, cur_y + f_nose_px)
+            right_shoulder = QPointF(center_x + f_dia_px / 2.0, cur_y + f_nose_px)
+            left_base = QPointF(center_x - f_dia_px / 2.0, cur_y + f_len_px)
+            right_base = QPointF(center_x + f_dia_px / 2.0, cur_y + f_len_px)
 
-        fairing_path.moveTo(top_pt)
-        fairing_path.quadTo(QPointF(center_x - f_dia_px * 0.4, cur_y + f_nose_px * 0.6), left_shoulder)
-        fairing_path.lineTo(left_base)
-        fairing_path.lineTo(right_base)
-        fairing_path.lineTo(right_shoulder)
-        fairing_path.quadTo(QPointF(center_x + f_dia_px * 0.4, cur_y + f_nose_px * 0.6), top_pt)
-        fairing_path.closeSubpath()
+            f_path = QPainterPath()
+            f_path.moveTo(top_pt)
+            f_path.quadTo(QPointF(center_x - f_dia_px * 0.35, cur_y + f_nose_px * 0.6), left_shoulder)
+            f_path.lineTo(left_base)
+            f_path.lineTo(right_base)
+            f_path.lineTo(right_shoulder)
+            f_path.quadTo(QPointF(center_x + f_dia_px * 0.35, cur_y + f_nose_px * 0.6), top_pt)
+            f_path.closeSubpath()
 
-        # Gradient fill
-        f_grad = QLinearGradient(center_x - f_dia_px / 2.0, 0, center_x + f_dia_px / 2.0, 0)
-        f_grad.setColorAt(0.0, QColor("#334155"))
-        f_grad.setColorAt(0.5, QColor("#64748b"))
-        f_grad.setColorAt(1.0, QColor("#334155"))
-        painter.setBrush(QBrush(f_grad))
-        painter.setPen(QPen(QColor(ACCENT_BLUE), 1.5))
-        painter.drawPath(fairing_path)
+            f_grad = QLinearGradient(center_x - f_dia_px / 2.0, 0, center_x + f_dia_px / 2.0, 0)
+            f_grad.setColorAt(0.0, QColor("#1e293b"))
+            f_grad.setColorAt(0.4, QColor("#475569"))
+            f_grad.setColorAt(0.6, QColor("#64748b"))
+            f_grad.setColorAt(1.0, QColor("#1e293b"))
 
-        # Label Fairing
-        self._draw_annotation(
-            painter,
-            center_x + f_dia_px / 2.0 + 15,
-            cur_y + f_len_px / 2.0,
-            f"Fairing (Ø{fairing.diameter_m:.1f}m, L={fairing.total_length_m:.1f}m)",
-            f"Vol: {fairing.internal_volume_m3:.1f} m³",
-        )
+            painter.setBrush(QBrush(f_grad))
+            painter.setPen(QPen(QColor(COLOR_CYAN), 1.2))
+            painter.drawPath(f_path)
+
+            self._draw_glass_badge(
+                painter,
+                center_x + f_dia_px / 2.0 + 16,
+                cur_y + f_len_px * 0.4,
+                "Fairing",
+                f"Ø{fairing.diameter_m:.1f}m · {fairing.internal_volume_m3:.1f}m³",
+            )
+        else:
+            # Fairing Jettisoned: Glowing Satellite Gold Payload Revealed!
+            sat_w = f_dia_px * 0.6
+            sat_h = f_len_px * 0.7
+            sat_rect = QRectF(center_x - sat_w / 2.0, cur_y + f_len_px * 0.2, sat_w, sat_h)
+            sat_grad = QLinearGradient(center_x - sat_w / 2.0, 0, center_x + sat_w / 2.0, 0)
+            sat_grad.setColorAt(0.0, QColor("#b45309"))
+            sat_grad.setColorAt(0.5, QColor("#fbbf24"))
+            sat_grad.setColorAt(1.0, QColor("#b45309"))
+            painter.setBrush(QBrush(sat_grad))
+            painter.setPen(QPen(QColor("#fef08a"), 1.2))
+            painter.drawRoundedRect(sat_rect, 4.0, 4.0)
+
+            # Solar Array Panels
+            painter.setBrush(QColor("#1e3a8a"))
+            painter.setPen(QPen(QColor(COLOR_CYAN), 1.0))
+            painter.drawRect(QRectF(center_x - sat_w * 1.2, cur_y + f_len_px * 0.35, sat_w * 0.6, sat_h * 0.4))
+            painter.drawRect(QRectF(center_x + sat_w * 0.6, cur_y + f_len_px * 0.35, sat_w * 0.6, sat_h * 0.4))
+
+            self._draw_glass_badge(
+                painter,
+                center_x + f_dia_px / 2.0 + 16,
+                cur_y + f_len_px * 0.4,
+                "Payload Deployed",
+                f"{v.mission.payload_mass_kg:,.0f} kg to LEO",
+            )
 
         cur_y += f_len_px
 
@@ -139,9 +205,9 @@ class RocketCanvas(QWidget):
         s2_dia_px = d_to_px(s2.geometry.diameter_m)
         s2_len_px = m_to_px(s2.geometry.total_length_m)
 
-        # Stage 2 Tank 1: LOX (Cyan)
+        # S2 Oxidizer Tank (Electric Cyan)
         ox2_len_px = m_to_px(s2.geometry.oxidizer_tank.total_length_m)
-        self._draw_tank(
+        self._draw_specular_tank(
             painter,
             center_x,
             cur_y,
@@ -152,10 +218,10 @@ class RocketCanvas(QWidget):
         )
         cur_y += ox2_len_px
 
-        # Stage 2 Tank 2: Fuel (Purple/Amber)
+        # S2 Fuel Tank (Methane Purple / Kerosene Amber)
         fuel2_len_px = m_to_px(s2.geometry.fuel_tank.total_length_m)
         fuel2_color = QColor(PROPELLANT_COLORS["CH4"] if "METH" in s2.propellant_combo.name else PROPELLANT_COLORS["RP1"])
-        self._draw_tank(
+        self._draw_specular_tank(
             painter,
             center_x,
             cur_y,
@@ -166,28 +232,41 @@ class RocketCanvas(QWidget):
         )
         cur_y += fuel2_len_px
 
-        # Stage 2 Skirt / Nozzle
+        # S2 Engine & Skirt
         skirt2_px = max(8.0, s2_len_px - ox2_len_px - fuel2_len_px)
-        self._draw_skirt(painter, center_x, cur_y, s2_dia_px, skirt2_px, "S2 Vac Engine")
+        self._draw_engine_skirt(painter, center_x, cur_y, s2_dia_px, skirt2_px, 1)
         cur_y += skirt2_px
 
-        # -------------------------------------------------------------
-        # 3. Interstage
-        # -------------------------------------------------------------
-        interstage_px = max(10.0, m_to_px(geom.interstage_length_m))
-        self._draw_interstage(painter, center_x, cur_y, s2_dia_px, d_to_px(geom.stage1.diameter_m), interstage_px)
-        cur_y += interstage_px
+        # Stage 2 Vacuum Flame Plume
+        if is_s2_firing:
+            self._draw_exhaust_plume(painter, center_x, cur_y, s2_dia_px * 0.7, 35.0, QColor(COLOR_METHANE_VIOLET))
 
         # -------------------------------------------------------------
-        # 4. Stage 1 (Booster)
+        # 3. Interstage Structure & Separation
+        # -------------------------------------------------------------
+        interstage_px = max(10.0, m_to_px(geom.interstage_length_m))
+        if is_staged:
+            # Draw Separation Ring Gap
+            cur_y += 18.0
+            painter.setPen(QPen(QColor(COLOR_ALERT_CORAL), 1.0, Qt.PenStyle.DashLine))
+            painter.drawLine(int(center_x - s2_dia_px * 0.8), int(cur_y), int(center_x + s2_dia_px * 0.8), int(cur_y))
+        else:
+            self._draw_interstage(painter, center_x, cur_y, s2_dia_px, d_to_px(geom.stage1.diameter_m), interstage_px)
+            cur_y += interstage_px
+
+        # -------------------------------------------------------------
+        # 4. Stage 1 (Booster) - Dims if Staged
         # -------------------------------------------------------------
         s1 = v.stage1
         s1_dia_px = d_to_px(s1.geometry.diameter_m)
         s1_len_px = m_to_px(s1.geometry.total_length_m)
 
-        # Stage 1 Tank 1: LOX (Cyan)
+        opacity = 0.25 if is_staged else 1.0
+        painter.setOpacity(opacity)
+
+        # S1 Oxidizer Tank (Cyan)
         ox1_len_px = m_to_px(s1.geometry.oxidizer_tank.total_length_m)
-        self._draw_tank(
+        self._draw_specular_tank(
             painter,
             center_x,
             cur_y,
@@ -198,9 +277,9 @@ class RocketCanvas(QWidget):
         )
         cur_y += ox1_len_px
 
-        # Stage 1 Tank 2: Fuel (Amber)
+        # S1 Fuel Tank (Amber RP-1)
         fuel1_len_px = m_to_px(s1.geometry.fuel_tank.total_length_m)
-        self._draw_tank(
+        self._draw_specular_tank(
             painter,
             center_x,
             cur_y,
@@ -211,35 +290,42 @@ class RocketCanvas(QWidget):
         )
         cur_y += fuel1_len_px
 
-        # Stage 1 Engine Skirt & Multi-Engine Bells
+        # S1 Booster Base & 3-Bell Cluster
         skirt1_px = max(12.0, s1_len_px - ox1_len_px - fuel1_len_px)
-        self._draw_booster_base(painter, center_x, cur_y, s1_dia_px, skirt1_px)
+        self._draw_engine_skirt(painter, center_x, cur_y, s1_dia_px, skirt1_px, 3)
         cur_y += skirt1_px
 
-        # -------------------------------------------------------------
-        # 5. Overall Dimension Callout Line
-        # -------------------------------------------------------------
-        dim_x = center_x - max_d * scale_y * 1.5 - 25.0
-        dim_pen = QPen(QColor(DARK_TEXT_SECONDARY), 1.5)
-        painter.setPen(dim_pen)
-        painter.drawLine(dim_x, margin_y, dim_x, cur_y)
-        painter.drawLine(dim_x - 5, margin_y, dim_x + 5, margin_y)
-        painter.drawLine(dim_x - 5, cur_y, dim_x + 5, cur_y)
+        # S1 Exhaust Flame Plume (Golden / Orange Shock Diamonds)
+        if is_s1_firing:
+            painter.setOpacity(1.0)
+            self._draw_exhaust_plume(painter, center_x, cur_y, s1_dia_px * 0.9, 50.0, QColor(COLOR_SUNSET_AMBER))
 
-        # Dimension Text
+        painter.setOpacity(1.0)
+
+        # -------------------------------------------------------------
+        # 5. Dimension Callout Line (Left Side)
+        # -------------------------------------------------------------
+        dim_x = center_x - max(s1_dia_px, f_dia_px) * 0.8 - 25.0
+        dim_pen = QPen(QColor(BORDER_ACCENT), 1.5)
+        painter.setPen(dim_pen)
+        painter.drawLine(int(dim_x), int(margin_y), int(dim_x), int(cur_y))
+        painter.drawLine(int(dim_x - 4), int(margin_y), int(dim_x + 4), int(margin_y))
+        painter.drawLine(int(dim_x - 4), int(cur_y), int(dim_x + 4), int(cur_y))
+
+        # Vertical text badge
         painter.save()
-        painter.translate(dim_x - 10, (margin_y + cur_y) / 2.0)
+        painter.translate(dim_x - 12, (margin_y + cur_y) / 2.0)
         painter.rotate(-90)
-        painter.setPen(QColor(DARK_TEXT_PRIMARY))
-        painter.setFont(QFont("-apple-system", 11, QFont.Weight.Bold))
+        painter.setPen(QColor(TEXT_SECONDARY))
+        painter.setFont(QFont("-apple-system", 10, QFont.Weight.Bold))
         painter.drawText(
-            QRectF(-100, -20, 200, 20),
+            QRectF(-120, -15, 240, 18),
             Qt.AlignmentFlag.AlignCenter,
-            f"Total Height: {geom.total_length_m:.2f} m  (L/D = {geom.fineness_ratio:.1f})",
+            f"TOTAL HEIGHT: {geom.total_length_m:.2f} m  (L/D = {geom.fineness_ratio:.1f})",
         )
         painter.restore()
 
-    def _draw_tank(
+    def _draw_specular_tank(
         self,
         painter: QPainter,
         cx: float,
@@ -249,50 +335,58 @@ class RocketCanvas(QWidget):
         color: QColor,
         label: str,
     ) -> None:
-        """Render a propellant tank with 2:1 ellipsoidal rounded caps and fluid gradient."""
+        """Draw a glossy metallic fluid tank with 2:1 ellipsoidal heads and specular highlights."""
         cap_h = min(height_px * 0.25, width_px * 0.25)
         rect = QRectF(cx - width_px / 2.0, top_y, width_px, height_px)
 
         path = QPainterPath()
         path.addRoundedRect(rect, width_px * 0.15, cap_h)
 
+        # Metallic Fluid Gradient with Specular Light Stripe
         grad = QLinearGradient(cx - width_px / 2.0, 0, cx + width_px / 2.0, 0)
-        grad.setColorAt(0.0, color.darker(160))
-        grad.setColorAt(0.5, color)
-        grad.setColorAt(1.0, color.darker(160))
+        grad.setColorAt(0.0, color.darker(220))
+        grad.setColorAt(0.35, color.darker(110))
+        grad.setColorAt(0.55, color.lighter(130))  # Specular reflection sheen
+        grad.setColorAt(0.85, color)
+        grad.setColorAt(1.0, color.darker(220))
 
         painter.setBrush(QBrush(grad))
-        painter.setPen(QPen(QColor(DARK_BORDER), 1.2))
+        painter.setPen(QPen(QColor("#27272a"), 1.0))
         painter.drawPath(path)
 
-        # Internal text
+        # Label inside tank
         painter.setPen(QColor("#ffffff"))
         painter.setFont(QFont("-apple-system", 10, QFont.Weight.DemiBold))
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
 
-    def _draw_skirt(
+    def _draw_engine_skirt(
         self,
         painter: QPainter,
         cx: float,
         top_y: float,
         width_px: float,
         height_px: float,
-        label: str,
+        bells: int,
     ) -> None:
         rect = QRectF(cx - width_px / 2.0, top_y, width_px, height_px)
-        painter.setBrush(QColor("#1e293b"))
-        painter.setPen(QPen(QColor(DARK_BORDER), 1.0))
+        painter.setBrush(QColor("#18181b"))
+        painter.setPen(QPen(QColor(BORDER_SUBTLE), 1.0))
         painter.drawRect(rect)
 
-        # Nozzle cone
-        nozzle_path = QPainterPath()
-        nozzle_path.moveTo(cx - width_px * 0.15, top_y)
-        nozzle_path.lineTo(cx + width_px * 0.15, top_y)
-        nozzle_path.lineTo(cx + width_px * 0.30, top_y + height_px)
-        nozzle_path.lineTo(cx - width_px * 0.30, top_y + height_px)
-        nozzle_path.closeSubpath()
-        painter.setBrush(QColor("#475569"))
-        painter.drawPath(nozzle_path)
+        # Draw Engine Bell Cones
+        bell_spacing = width_px / (bells + 1)
+        for i in range(bells):
+            bx = cx - width_px / 2.0 + (i + 1) * bell_spacing
+            b_w = bell_spacing * 0.6
+            bell_path = QPainterPath()
+            bell_path.moveTo(bx - b_w * 0.3, top_y)
+            bell_path.lineTo(bx + b_w * 0.3, top_y)
+            bell_path.lineTo(bx + b_w * 0.5, top_y + height_px)
+            bell_path.lineTo(bx - b_w * 0.5, top_y + height_px)
+            bell_path.closeSubpath()
+            painter.setBrush(QColor("#3f3f46"))
+            painter.setPen(QPen(QColor("#71717a"), 1.0))
+            painter.drawPath(bell_path)
 
     def _draw_interstage(
         self,
@@ -310,47 +404,48 @@ class RocketCanvas(QWidget):
         path.lineTo(cx - bot_w / 2.0, top_y + height_px)
         path.closeSubpath()
 
-        painter.setBrush(QColor("#0f172a"))
-        painter.setPen(QPen(QColor(ACCENT_BLUE), 1.0, Qt.PenStyle.DashLine))
+        painter.setBrush(QColor("#09090b"))
+        painter.setPen(QPen(QColor(BORDER_ACCENT), 1.0, Qt.PenStyle.DashLine))
         painter.drawPath(path)
 
-        # Center line
-        painter.setPen(QColor(DARK_TEXT_MUTED))
-        painter.setFont(QFont("-apple-system", 9))
+        painter.setPen(QColor(TEXT_MUTED))
+        painter.setFont(QFont("-apple-system", 9, QFont.Weight.Medium))
         painter.drawText(
             QRectF(cx - bot_w / 2.0, top_y, bot_w, height_px),
             Qt.AlignmentFlag.AlignCenter,
-            "── Staging ──",
+            "── Staging Ring ──",
         )
 
-    def _draw_booster_base(
+    def _draw_exhaust_plume(
         self,
         painter: QPainter,
         cx: float,
         top_y: float,
-        width_px: float,
-        height_px: float,
+        base_w: float,
+        flame_len: float,
+        core_color: QColor,
     ) -> None:
-        rect = QRectF(cx - width_px / 2.0, top_y, width_px, height_px)
-        painter.setBrush(QColor("#1e293b"))
-        painter.setPen(QPen(QColor(DARK_BORDER), 1.0))
-        painter.drawRect(rect)
+        """Dynamic supersonic exhaust flame with animated shock diamonds."""
+        flicker = sin(self._flame_phase) * 4.0
+        total_flame = flame_len + flicker
 
-        # Draw 3 Engine Nozzles at Base
-        n_bells = 3
-        bell_w = width_px / (n_bells + 1)
-        for i in range(n_bells):
-            bx = cx - width_px / 2.0 + (i + 1) * (width_px / (n_bells + 1))
-            n_path = QPainterPath()
-            n_path.moveTo(bx - bell_w * 0.2, top_y)
-            n_path.lineTo(bx + bell_w * 0.2, top_y)
-            n_path.lineTo(bx + bell_w * 0.45, top_y + height_px)
-            n_path.lineTo(bx - bell_w * 0.45, top_y + height_px)
-            n_path.closeSubpath()
-            painter.setBrush(QColor("#64748b"))
-            painter.drawPath(n_path)
+        flame_path = QPainterPath()
+        flame_path.moveTo(cx - base_w / 2.0, top_y)
+        flame_path.quadTo(cx - base_w * 0.8, top_y + total_flame * 0.6, cx, top_y + total_flame)
+        flame_path.quadTo(cx + base_w * 0.8, top_y + total_flame * 0.6, cx + base_w / 2.0, top_y)
+        flame_path.closeSubpath()
 
-    def _draw_annotation(
+        f_grad = QRadialGradient(cx, top_y + total_flame * 0.3, total_flame)
+        f_grad.setColorAt(0.0, QColor("#ffffff"))
+        f_grad.setColorAt(0.3, core_color.lighter(150))
+        f_grad.setColorAt(0.8, core_color)
+        f_grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+
+        painter.setBrush(QBrush(f_grad))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawPath(flame_path)
+
+    def _draw_glass_badge(
         self,
         painter: QPainter,
         x: float,
@@ -358,10 +453,19 @@ class RocketCanvas(QWidget):
         title: str,
         subtitle: str = "",
     ) -> None:
-        painter.setPen(QColor(DARK_TEXT_PRIMARY))
-        painter.setFont(QFont("-apple-system", 11, QFont.Weight.DemiBold))
-        painter.drawText(int(x), int(y - 6), title)
+        badge_w = 140.0
+        badge_h = 32.0 if subtitle else 20.0
+        rect = QRectF(x, y - badge_h / 2.0, badge_w, badge_h)
+
+        painter.setBrush(QColor("#18181b"))
+        painter.setPen(QPen(QColor(BORDER_SUBTLE), 1.0))
+        painter.drawRoundedRect(rect, 6.0, 6.0)
+
+        painter.setPen(QColor(TEXT_PRIMARY))
+        painter.setFont(QFont("-apple-system", 10, QFont.Weight.Bold))
+        painter.drawText(int(x + 8), int(y - (4 if subtitle else 0)), title)
+
         if subtitle:
-            painter.setPen(QColor(DARK_TEXT_SECONDARY))
-            painter.setFont(QFont("-apple-system", 10))
-            painter.drawText(int(x), int(y + 12), subtitle)
+            painter.setPen(QColor(TEXT_SECONDARY))
+            painter.setFont(QFont("-apple-system", 9))
+            painter.drawText(int(x + 8), int(y + 11), subtitle)

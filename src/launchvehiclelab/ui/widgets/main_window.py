@@ -1,4 +1,4 @@
-"""Master application window integrating all LaunchVehicleLab UI components."""
+"""Apple Final Cut Pro inspired Master Window integrating inspector, studio blueprint, trajectory, and magnetic timeline."""
 
 from pathlib import Path
 
@@ -16,23 +16,26 @@ from PySide6.QtWidgets import (
 )
 
 from launchvehiclelab import __version__
-from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryResult
+from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryPoint, TrajectoryResult
 from launchvehiclelab.ui.models import VehicleViewModel
+from launchvehiclelab.ui.theme import BG_CANVAS, BG_PANEL, BORDER_SUBTLE, SPACE_BLACK
 from launchvehiclelab.ui.widgets.events_table import EventsTable
 from launchvehiclelab.ui.widgets.mission_panel import MissionPanel
 from launchvehiclelab.ui.widgets.rocket_canvas import RocketCanvas
+from launchvehiclelab.ui.widgets.scrubber_bar import FlightScrubberBar
 from launchvehiclelab.ui.widgets.trajectory_view import TrajectoryView
 
 
 class MainWindow(QMainWindow):
-    """Main desktop interface window for LaunchVehicleLab."""
+    """Main desktop interface window with Apple FCP pro design and magnetic flight scrubber."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle(f"LaunchVehicleLab v{__version__} — Launch Vehicle Preliminary Sizing & Simulation")
-        self.resize(1340, 840)
+        self.setWindowTitle(f"LaunchVehicleLab Studio v{__version__} — Multidisciplinary Launcher Design & Flight Engine")
+        self.resize(1380, 880)
 
         self.vm = VehicleViewModel(self)
+        self._current_trajectory: TrajectoryResult | None = None
 
         self._init_ui()
         self._init_menus()
@@ -43,38 +46,47 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self) -> None:
         central_widget = QWidget()
+        central_widget.setStyleSheet(f"background-color: {SPACE_BLACK};")
         self.setCentralWidget(central_widget)
 
-        main_layout = QHBoxLayout(central_widget)
-        main_layout.setContentsMargins(8, 8, 8, 8)
-        main_layout.setSpacing(8)
+        root_layout = QVBoxLayout(central_widget)
+        root_layout.setContentsMargins(6, 6, 6, 6)
+        root_layout.setSpacing(6)
 
-        # Three-panel splitter: Controls | 2D Blueprint | Flight Dynamics / Events
+        # -------------------------------------------------------------
+        # 1. Main Three-Panel Horizontal Workspace
+        # -------------------------------------------------------------
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {BORDER_SUBTLE}; width: 1px; }}")
 
-        # 1. Left Panel: Mission Controls
+        # Left Panel: Mission & Sizing Inspector
         self.mission_panel = MissionPanel(self.vm)
         self.mission_panel.setMinimumWidth(320)
         self.mission_panel.setMaximumWidth(420)
         splitter.addWidget(self.mission_panel)
 
-        # 2. Middle Panel: 2D Rocket Canvas
+        # Middle Panel: 2D Aerospace CAD Blueprint
         self.rocket_canvas = RocketCanvas()
-        self.rocket_canvas.setMinimumWidth(320)
+        self.rocket_canvas.setMinimumWidth(340)
         splitter.addWidget(self.rocket_canvas)
 
-        # 3. Right Panel: Trajectory Plots & Event Log Tabs
+        # Right Panel: Multi-view Trajectory & Mission Event Log
         right_tabs = QTabWidget()
         self.trajectory_view = TrajectoryView()
         self.events_table = EventsTable()
 
-        right_tabs.addTab(self.trajectory_view, "📊 Ascent Flight Dynamics")
-        right_tabs.addTab(self.events_table, "⏱️ Mission Event Timeline")
+        right_tabs.addTab(self.trajectory_view, "📊 Ascent Dynamics")
+        right_tabs.addTab(self.events_table, "⏱️ Event Timeline")
         splitter.addWidget(right_tabs)
 
-        # Set initial splitter proportions (25% | 30% | 45%)
-        splitter.setSizes([340, 400, 600])
-        main_layout.addWidget(splitter)
+        splitter.setSizes([340, 420, 620])
+        root_layout.addWidget(splitter, 1)
+
+        # -------------------------------------------------------------
+        # 2. Bottom Magnetic Timeline & Transport Scrubber Deck
+        # -------------------------------------------------------------
+        self.scrubber_bar = FlightScrubberBar()
+        root_layout.addWidget(self.scrubber_bar)
 
         # Status Bar
         self.statusBar().showMessage("Ready")
@@ -120,15 +132,34 @@ class MainWindow(QMainWindow):
         self.vm.status_message.connect(self.statusBar().showMessage)
         self.vm.error_occurred.connect(self._on_error)
 
+        # Timeline Scrubber connection to all views
+        self.scrubber_bar.time_changed.connect(self._on_time_scrubbed)
+
     def _on_vehicle_sized(self, vehicle: CoupledVehicleResult) -> None:
         self.rocket_canvas.set_vehicle(vehicle)
 
     def _on_trajectory_ready(self, traj: TrajectoryResult) -> None:
+        self._current_trajectory = traj
+        self.rocket_canvas.set_trajectory(traj)
         self.trajectory_view.update_trajectory(traj)
         self.events_table.update_events(traj)
+        self.scrubber_bar.set_trajectory(traj)
+
+    def _on_time_scrubbed(self, time_s: float) -> None:
+        """Synchronize playhead across canvas, trajectory plots, telemetry HUD, and events."""
+        self.rocket_canvas.set_flight_time(time_s)
+        self.trajectory_view.set_flight_time(time_s)
+        self.events_table.highlight_event_at_time(time_s)
+
+        # Interpolate instantaneous telemetry point
+        if self._current_trajectory and self._current_trajectory.points:
+            pts = self._current_trajectory.points
+            # Binary search or closest point lookup
+            closest_pt = min(pts, key=lambda p: abs(p.time_s - time_s))
+            self.mission_panel.update_telemetry_hud(closest_pt)
 
     def _on_error(self, err: str) -> None:
-        QMessageBox.critical(self, "Calculation Error", f"An error occurred during analysis:\n\n{err}")
+        QMessageBox.critical(self, "Analysis Error", f"An error occurred during analysis:\n\n{err}")
 
     def _on_open_project(self) -> None:
         filepath, _ = QFileDialog.getOpenFileName(
@@ -165,12 +196,7 @@ class MainWindow(QMainWindow):
         QMessageBox.about(
             self,
             "About LaunchVehicleLab",
-            f"<b>LaunchVehicleLab v{__version__}</b><br><br>"
-            "Open-source launch vehicle preliminary design and 3DOF flight simulation platform.<br><br>"
-            "Features:<br>"
-            "• Multidisciplinary coupled mass-geometry sizing coordinator<br>"
-            "• 2:1 ellipsoidal tank geometry & subsystem mass models<br>"
-            "• 1976 US Standard Atmosphere & aerodynamic load modeling<br>"
-            "• 3DOF point-mass ascent flight dynamics ODE solver<br>"
-            "• Discrete mission event state machine",
+            f"<b>LaunchVehicleLab Studio v{__version__}</b><br><br>"
+            "Open-source launch vehicle preliminary sizing & 3DOF flight trajectory simulation platform.<br><br>"
+            "Design inspired by Apple Pro Video & Aerospace Telemetry Studios.",
         )

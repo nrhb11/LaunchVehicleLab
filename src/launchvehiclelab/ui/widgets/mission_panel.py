@@ -1,13 +1,15 @@
-"""Mission parameters and input controls panel widget."""
+"""Apple Final Cut Pro inspired Mission Control Inspector Panel with Segmented Chips & Telemetry Gauges."""
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QComboBox,
+    QButtonGroup,
     QDoubleSpinBox,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSlider,
@@ -15,22 +17,69 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryResult
+from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryPoint, TrajectoryResult
 from launchvehiclelab.ui.models import VehicleViewModel
 from launchvehiclelab.ui.theme import (
-    ACCENT_BLUE,
-    ACCENT_GREEN,
-    ACCENT_RED,
-    DARK_BG_CARD,
-    DARK_TEXT_PRIMARY,
-    DARK_TEXT_SECONDARY,
+    BG_CARD,
+    COLOR_ALERT_CORAL,
+    COLOR_CYAN,
+    COLOR_ELECTRIC_BLUE,
+    COLOR_FLIGHT_GREEN,
+    COLOR_SUNSET_AMBER,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
 )
 
 
-class MissionPanel(QWidget):
-    """Left-hand sidebar for parameter controls and top-level mission summary."""
+class TelemetryMeter(QWidget):
+    """Sleek Apple-style horizontal VU telemetry bar with value label."""
 
-    run_requested = Signal()
+    def __init__(self, label: str, unit: str, max_val: float, bar_color: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.max_val = max_val
+        self.unit = unit
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 2, 0, 4)
+        layout.setSpacing(4)
+
+        header_layout = QHBoxLayout()
+        self.title_lbl = QLabel(label)
+        self.title_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        self.val_lbl = QLabel(f"0.0 {unit}")
+        self.val_lbl.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12px; font-weight: bold; font-family: monospace;")
+        header_layout.addWidget(self.title_lbl)
+        header_layout.addStretch()
+        header_layout.addWidget(self.val_lbl)
+        layout.addLayout(header_layout)
+
+        self.bar = QProgressBar()
+        self.bar.setRange(0, 1000)
+        self.bar.setValue(0)
+        self.bar.setTextVisible(False)
+        self.bar.setFixedHeight(5)
+        self.bar.setStyleSheet(f"""
+            QProgressBar {{
+                background-color: {BG_CARD};
+                border: 1px solid #27272a;
+                border-radius: 2px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {bar_color};
+                border-radius: 2px;
+            }}
+        """)
+        layout.addWidget(self.bar)
+
+    def set_value(self, val: float) -> None:
+        self.val_lbl.setText(f"{val:.1f} {self.unit}")
+        percent = max(0.0, min(1.0, val / max(1e-3, self.max_val)))
+        self.bar.setValue(int(percent * 1000))
+
+
+class MissionPanel(QWidget):
+    """Left-hand FCP inspector panel with segmented controls, mission inputs, and live telemetry."""
 
     def __init__(self, view_model: VehicleViewModel, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -40,8 +89,8 @@ class MissionPanel(QWidget):
 
     def _init_ui(self) -> None:
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(10)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -50,118 +99,137 @@ class MissionPanel(QWidget):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
+        layout.setSpacing(14)
 
         # -------------------------------------------------------------
-        # Section 1: Mission Target & Orbit
+        # Section 1: Target Mission Specification
         # -------------------------------------------------------------
-        mission_group = QGroupBox("🛰️ Target Mission & Payload")
+        mission_group = QGroupBox("🛰️ Mission Specification")
         mission_form = QFormLayout(mission_group)
-        mission_form.setSpacing(10)
+        mission_form.setSpacing(8)
+        mission_form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        # Payload Mass
         self.payload_spin = QDoubleSpinBox()
         self.payload_spin.setRange(10.0, 50_000.0)
         self.payload_spin.setValue(self.vm.payload_mass_kg)
         self.payload_spin.setSuffix(" kg")
         self.payload_spin.setSingleStep(50.0)
-        mission_form.addRow("Payload Mass:", self.payload_spin)
+        mission_form.addRow("Payload Mass", self.payload_spin)
 
-        # Orbit Altitude
         self.alt_spin = QDoubleSpinBox()
         self.alt_spin.setRange(150.0, 2000.0)
         self.alt_spin.setValue(self.vm.target_altitude_m / 1000.0)
         self.alt_spin.setSuffix(" km")
         self.alt_spin.setSingleStep(50.0)
-        mission_form.addRow("Target LEO Alt:", self.alt_spin)
+        mission_form.addRow("Target Orbit", self.alt_spin)
 
-        # Launch Latitude
         self.lat_spin = QDoubleSpinBox()
         self.lat_spin.setRange(0.0, 70.0)
         self.lat_spin.setValue(self.vm.launch_latitude_deg)
         self.lat_spin.setSuffix(" °")
-        mission_form.addRow("Launch Latitude:", self.lat_spin)
+        mission_form.addRow("Launch Lat", self.lat_spin)
 
         layout.addWidget(mission_group)
 
         # -------------------------------------------------------------
-        # Section 2: Propulsion & Propellant Selection
+        # Section 2: Propellant & Segmented Stage Architecture
         # -------------------------------------------------------------
-        prop_group = QGroupBox("🔥 Stage Propellants & Geometry")
-        prop_form = QFormLayout(prop_group)
-        prop_form.setSpacing(10)
+        prop_group = QGroupBox("🔥 Stage Propulsion & Sizing")
+        prop_layout = QVBoxLayout(prop_group)
+        prop_layout.setSpacing(10)
 
-        self.s1_prop_combo = QComboBox()
-        self.s1_prop_combo.addItems(["KEROLOX", "METHALOX", "HYDROLOX"])
-        self.s1_prop_combo.setCurrentText(self.vm.stage1_prop_name)
-        prop_form.addRow("Stage 1 Prop:", self.s1_prop_combo)
+        # Stage 1 Propellant Segmented Chips
+        s1_lbl = QLabel("Stage 1 Booster Propellant")
+        s1_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        prop_layout.addWidget(s1_lbl)
+
+        s1_seg_frame = QFrame()
+        s1_seg_frame.setObjectName("SegmentedGroup")
+        s1_seg_layout = QHBoxLayout(s1_seg_frame)
+        s1_seg_layout.setContentsMargins(2, 2, 2, 2)
+        s1_seg_layout.setSpacing(2)
+
+        self.s1_group = QButtonGroup(self)
+        for name in ["KEROLOX", "METHALOX", "HYDROLOX"]:
+            chip = QPushButton(name)
+            chip.setObjectName("SegmentChip")
+            chip.setCheckable(True)
+            if name == self.vm.stage1_prop_name:
+                chip.setChecked(True)
+            self.s1_group.addButton(chip)
+            s1_seg_layout.addWidget(chip)
+        prop_layout.addWidget(s1_seg_frame)
+
+        # Stage 2 Propellant Segmented Chips
+        s2_lbl = QLabel("Stage 2 Upper Stage Propellant")
+        s2_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        prop_layout.addWidget(s2_lbl)
+
+        s2_seg_frame = QFrame()
+        s2_seg_frame.setObjectName("SegmentedGroup")
+        s2_seg_layout = QHBoxLayout(s2_seg_frame)
+        s2_seg_layout.setContentsMargins(2, 2, 2, 2)
+        s2_seg_layout.setSpacing(2)
+
+        self.s2_group = QButtonGroup(self)
+        for name in ["METHALOX", "KEROLOX", "HYDROLOX"]:
+            chip = QPushButton(name)
+            chip.setObjectName("SegmentChip")
+            chip.setCheckable(True)
+            if name == self.vm.stage2_prop_name:
+                chip.setChecked(True)
+            self.s2_group.addButton(chip)
+            s2_seg_layout.addWidget(chip)
+        prop_layout.addWidget(s2_seg_frame)
+
+        # Stage Diameters
+        diam_form = QFormLayout()
+        diam_form.setSpacing(8)
 
         self.s1_diam_spin = QDoubleSpinBox()
-        self.s1_diam_spin.setRange(0.5, 6.0)
+        self.s1_diam_spin.setRange(0.6, 6.0)
         self.s1_diam_spin.setValue(self.vm.stage1_diameter_m)
         self.s1_diam_spin.setSuffix(" m")
         self.s1_diam_spin.setSingleStep(0.1)
-        prop_form.addRow("Stage 1 Diameter:", self.s1_diam_spin)
-
-        self.s2_prop_combo = QComboBox()
-        self.s2_prop_combo.addItems(["METHALOX", "KEROLOX", "HYDROLOX"])
-        self.s2_prop_combo.setCurrentText(self.vm.stage2_prop_name)
-        prop_form.addRow("Stage 2 Prop:", self.s2_prop_combo)
+        diam_form.addRow("S1 Diameter", self.s1_diam_spin)
 
         self.s2_diam_spin = QDoubleSpinBox()
-        self.s2_diam_spin.setRange(0.5, 6.0)
+        self.s2_diam_spin.setRange(0.6, 6.0)
         self.s2_diam_spin.setValue(self.vm.stage2_diameter_m)
         self.s2_diam_spin.setSuffix(" m")
         self.s2_diam_spin.setSingleStep(0.1)
-        prop_form.addRow("Stage 2 Diameter:", self.s2_diam_spin)
+        diam_form.addRow("S2 Diameter", self.s2_diam_spin)
 
-        self.fairing_diam_spin = QDoubleSpinBox()
-        self.fairing_diam_spin.setRange(0.5, 6.5)
-        self.fairing_diam_spin.setValue(self.vm.fairing_diameter_m)
-        self.fairing_diam_spin.setSuffix(" m")
-        self.fairing_diam_spin.setSingleStep(0.1)
-        prop_form.addRow("Fairing Diameter:", self.fairing_diam_spin)
-
+        prop_layout.addLayout(diam_form)
         layout.addWidget(prop_group)
 
         # -------------------------------------------------------------
-        # Section 3: Action Button
+        # Section 3: Action Trigger
         # -------------------------------------------------------------
-        self.run_button = QPushButton("⚡ Size Rocket & Simulate 3DOF Flight")
+        self.run_button = QPushButton("⚡ Size Vehicle & Run 3DOF Ascent")
         self.run_button.setObjectName("PrimaryButton")
         self.run_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.run_button.setMinimumHeight(42)
+        self.run_button.setMinimumHeight(40)
         layout.addWidget(self.run_button)
 
         # -------------------------------------------------------------
-        # Section 4: Live KPI Summary Card
+        # Section 4: Live Instantaneous Flight Telemetry HUD
         # -------------------------------------------------------------
-        kpi_group = QGroupBox("📊 Key Performance Indicators")
-        kpi_layout = QVBoxLayout(kpi_group)
-        kpi_layout.setSpacing(8)
+        hud_group = QGroupBox("📟 Flight Telemetry HUD")
+        hud_layout = QVBoxLayout(hud_group)
+        hud_layout.setSpacing(8)
 
-        self.glow_label = QLabel("GLOW: --")
-        self.glow_label.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {ACCENT_GREEN};")
-        kpi_layout.addWidget(self.glow_label)
+        self.alt_meter = TelemetryMeter("Instant Altitude", "km", 500.0, COLOR_ELECTRIC_BLUE)
+        self.vel_meter = TelemetryMeter("Velocity", "m/s", 8000.0, COLOR_CYAN)
+        self.dyn_meter = TelemetryMeter("Dynamic Pressure", "kPa", 50.0, COLOR_ALERT_CORAL)
+        self.g_meter = TelemetryMeter("Axial G-Force", "g", 6.0, COLOR_FLIGHT_GREEN)
 
-        self.length_label = QLabel("Stack Length: --")
-        kpi_layout.addWidget(self.length_label)
+        hud_layout.addWidget(self.alt_meter)
+        hud_layout.addWidget(self.vel_meter)
+        hud_layout.addWidget(self.dyn_meter)
+        hud_layout.addWidget(self.g_meter)
 
-        self.fineness_label = QLabel("Fineness (L/D): --")
-        kpi_layout.addWidget(self.fineness_label)
-
-        self.payload_ratio_label = QLabel("Payload Ratio: --")
-        kpi_layout.addWidget(self.payload_ratio_label)
-
-        self.max_q_label = QLabel("Max-Q: --")
-        self.max_q_label.setStyleSheet(f"font-weight: bold; color: {ACCENT_RED};")
-        kpi_layout.addWidget(self.max_q_label)
-
-        self.burnout_v_label = QLabel("Insertion Vel: --")
-        self.burnout_v_label.setStyleSheet(f"color: {ACCENT_BLUE};")
-        kpi_layout.addWidget(self.burnout_v_label)
-
-        layout.addWidget(kpi_group)
+        layout.addWidget(hud_group)
         layout.addStretch()
 
         scroll.setWidget(container)
@@ -169,28 +237,27 @@ class MissionPanel(QWidget):
 
     def _bind_events(self) -> None:
         self.run_button.clicked.connect(self._on_run_clicked)
-        self.vm.vehicle_sized.connect(self.update_vehicle_kpis)
-        self.vm.trajectory_ready.connect(self.update_trajectory_kpis)
 
     def _on_run_clicked(self) -> None:
         self.vm.payload_mass_kg = self.payload_spin.value()
         self.vm.target_altitude_m = self.alt_spin.value() * 1000.0
         self.vm.launch_latitude_deg = self.lat_spin.value()
-        self.vm.stage1_prop_name = self.s1_prop_combo.currentText()
-        self.vm.stage2_prop_name = self.s2_prop_combo.currentText()
+
+        # Selected propellant chips
+        s1_checked = self.s1_group.checkedButton()
+        if s1_checked:
+            self.vm.stage1_prop_name = s1_checked.text()
+        s2_checked = self.s2_group.checkedButton()
+        if s2_checked:
+            self.vm.stage2_prop_name = s2_checked.text()
+
         self.vm.stage1_diameter_m = self.s1_diam_spin.value()
         self.vm.stage2_diameter_m = self.s2_diam_spin.value()
-        self.vm.fairing_diameter_m = self.fairing_diam_spin.value()
         self.vm.run_sizing_and_simulation()
 
-    def update_vehicle_kpis(self, vehicle: CoupledVehicleResult) -> None:
-        glow_t = vehicle.gross_liftoff_weight_kg / 1000.0
-        self.glow_label.setText(f"GLOW: {glow_t:.2f} t ({vehicle.gross_liftoff_weight_kg:,.0f} kg)")
-        self.length_label.setText(f"Stack Length: {vehicle.vehicle_geometry.total_length_m:.2f} m")
-        self.fineness_label.setText(f"Fineness Ratio (L/D): {vehicle.vehicle_geometry.fineness_ratio:.1f}")
-        self.payload_ratio_label.setText(f"Payload Ratio: {vehicle.payload_ratio_percent:.2f}%")
-
-    def update_trajectory_kpis(self, traj: TrajectoryResult) -> None:
-        max_q_kpa = traj.max_q_pa / 1000.0
-        self.max_q_label.setText(f"Max-Q: {max_q_kpa:.2f} kPa (@ {traj.max_q_alt_m / 1000.0:.1f} km)")
-        self.burnout_v_label.setText(f"Insertion Vel: {traj.final_orbit_velocity_m_per_s:,.1f} m/s")
+    def update_telemetry_hud(self, point: TrajectoryPoint) -> None:
+        """Update live telemetry meters from scrubbed trajectory sample."""
+        self.alt_meter.set_value(point.altitude_m / 1000.0)
+        self.vel_meter.set_value(point.velocity_m_per_s)
+        self.dyn_meter.set_value(point.dynamic_pressure_pa / 1000.0)
+        self.g_meter.set_value(point.acceleration_g)
