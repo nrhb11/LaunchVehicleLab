@@ -1,0 +1,93 @@
+{
+  "delta_v_budget": {
+    "drag_loss_m_per_s": 150.0,
+    "earth_rotation_boost_m_per_s": 408.7387925256125,
+    "gravity_loss_m_per_s": 1200.0,
+    "margin_m_per_s": 262.61608142094764,
+    "net_ideal_burn_m_per_s": 7203.8693806982565,
+    "orbital_velocity_m_per_s": 7612.608173223869,
+    "steering_loss_m_per_s": 200.0,
+    "total_delta_v_m_per_s": 9016.485462119203
+  },
+  "generator": "LaunchVehicleLab 0.1.0",
+  "mission": {
+    "launch_azimuth_rad": 1.5707963267948966,
+    "launch_latitude_rad": 0.49741883681838395,
+    "payload_mass_kg": 500.0,
+    "target_altitude_m": 500000.0
+  },
+  "schema_version": "0.2",
+  "stages": [
+    {
+      "effective_structural_fraction": 0.08397069392644604,
+      "fuel_mass_kg": 5081.00800838765,
+      "geometry": {
+        "diameter_m": 1.4,
+        "fuel_tank_length_m": 4.4712483851921245,
+        "oxidizer_tank_length_m": 7.935121809700019,
+        "total_length_m": 13.826370194892144
+      },
+      "mass_breakdown": {
+        "avionics_mass_kg": 35.0,
+        "interstage_mass_kg": 35.0,
+        "propulsion_mass_kg": 487.51929797308526,
+        "residuals_and_margin_kg": 217.0606621183204,
+        "tanks_mass_kg": 883.5487974858529,
+        "total_dry_mass_kg": 1658.1287575772585
+      },
+      "name": "Stage 1 (Booster)",
+      "oxidizer_mass_kg": 13007.380501472382,
+      "propellant_combination": "Kerolox (LOX/RP-1)",
+      "propellant_mass_kg": 18088.388509860033,
+      "sizing": {
+        "burnout_mass_kg": 5912.561544199548,
+        "delta_v_m_per_s": 4121.776924958373,
+        "initial_mass_kg": 24000.95005405958,
+        "mass_ratio": 4.059315048924175
+      }
+    },
+    {
+      "effective_structural_fraction": 0.11674590380446978,
+      "fuel_mass_kg": 704.571189268646,
+      "geometry": {
+        "diameter_m": 1.4,
+        "fuel_tank_length_m": 1.3597077408739229,
+        "oxidizer_tank_length_m": 1.6934738996727603,
+        "total_length_m": 4.473181640546683
+      },
+      "mass_breakdown": {
+        "avionics_mass_kg": 45.0,
+        "propulsion_mass_kg": 69.54301051386062,
+        "residuals_and_margin_kg": 38.04684422050689,
+        "tanks_mass_kg": 266.4867200364444,
+        "total_dry_mass_kg": 419.07657477081193
+      },
+      "name": "Stage 2 (Upper Stage)",
+      "oxidizer_mass_kg": 2465.9991624402614,
+      "propellant_combination": "Methalox (LOX/LCH4)",
+      "propellant_mass_kg": 3170.5703517089073,
+      "sizing": {
+        "burnout_mass_kg": 1083.8255856096243,
+        "delta_v_m_per_s": 4894.70853716083,
+        "initial_mass_kg": 4254.395937318532,
+        "mass_ratio": 3.9253510839804933
+      }
+    }
+  ],
+  "vehicle_geometry": {
+    "fairing": {
+      "diameter_m": 1.5,
+      "internal_volume_m3": 4.241150082346221,
+      "surface_area_m2": 13.076879420567513,
+      "total_length_m": 3.5999999999999996
+    },
+    "interstage_length_m": 0.8
+  },
+  "vehicle_summary": {
+    "fineness_ratio": 16.213965596742018,
+    "gross_liftoff_weight_kg": 24000.95005405958,
+    "iterations_to_converge": 18,
+    "payload_ratio_percent": 2.0832508666273766,
+    "total_length_m": 22.699551835438825
+  }
+}

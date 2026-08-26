@@ -6,11 +6,15 @@ from collections.abc import Sequence
 from math import radians
 
 from launchvehiclelab import __version__
+from launchvehiclelab.adapters import load_project, save_project
+from launchvehiclelab.application import run_coupled_sizing
 from launchvehiclelab.core import (
     EARTH_EQUATORIAL_RADIUS_M,
     EARTH_MU_M3_PER_S2,
     EARTH_ROTATION_RATE_RAD_PER_S,
+    PROPELLANT_COMBINATIONS,
     STANDARD_GRAVITY_M_PER_S2,
+    MissionSpec,
     OrbitTarget,
     StageSpec,
     calculate_delta_v_budget,
@@ -61,6 +65,27 @@ def _build_parser() -> argparse.ArgumentParser:
     staging_parser.add_argument("--stage2-isp", type=float, required=True, help="Stage 2 specific impulse in seconds")
     staging_parser.add_argument("--stage1-eps", type=float, default=0.08, help="Stage 1 structural fraction (default 0.08)")
     staging_parser.add_argument("--stage2-eps", type=float, default=0.10, help="Stage 2 structural fraction (default 0.10)")
+
+    # Subcommand: coupled-sizing (V0.2)
+    coupled_parser = subparsers.add_parser(
+        "coupled-sizing",
+        help="Perform multidisciplinary mass-geometry coupled vehicle sizing and packaging.",
+    )
+    coupled_parser.add_argument("--payload-kg", type=float, required=True, help="Payload mass in kilograms")
+    coupled_parser.add_argument("--altitude-m", type=float, required=True, help="Target circular orbit altitude in metres")
+    coupled_parser.add_argument("--latitude-deg", type=float, default=28.5, help="Launch site latitude in degrees")
+    coupled_parser.add_argument("--stage1-diameter-m", type=float, default=1.4, help="Stage 1 outer diameter (m)")
+    coupled_parser.add_argument("--stage2-diameter-m", type=float, default=1.4, help="Stage 2 outer diameter (m)")
+    coupled_parser.add_argument("--stage1-prop", choices=["KEROLOX", "METHALOX", "HYDROLOX"], default="KEROLOX", help="Stage 1 propellant")
+    coupled_parser.add_argument("--stage2-prop", choices=["KEROLOX", "METHALOX", "HYDROLOX"], default="METHALOX", help="Stage 2 propellant")
+    coupled_parser.add_argument("--export-file", type=str, default=None, help="Optional path to save .lvlab project file")
+
+    # Subcommand: inspect-project (V0.2)
+    inspect_parser = subparsers.add_parser(
+        "inspect-project",
+        help="Inspect and display contents of a saved .lvlab project file.",
+    )
+    inspect_parser.add_argument("--file", type=str, required=True, help="Path to .lvlab project file")
 
     return parser
 
@@ -198,6 +223,78 @@ def _run_two_stage_sizing(args: argparse.Namespace) -> dict[str, object]:
     }
 
 
+def _run_coupled_sizing(args: argparse.Namespace) -> dict[str, object]:
+    mission = MissionSpec(
+        payload_mass_kg=args.payload_kg,
+        target=OrbitTarget(altitude_m=args.altitude_m),
+        launch_latitude_rad=radians(args.latitude_deg),
+    )
+    s1_combo = PROPELLANT_COMBINATIONS[args.stage1_prop]
+    s2_combo = PROPELLANT_COMBINATIONS[args.stage2_prop]
+
+    result = run_coupled_sizing(
+        mission=mission,
+        stage1_combo=s1_combo,
+        stage2_combo=s2_combo,
+        stage1_diameter_m=args.stage1_diameter_m,
+        stage2_diameter_m=args.stage2_diameter_m,
+    )
+
+    if args.export_file:
+        saved_path = save_project(result, args.export_file)
+
+    return {
+        "schema_version": "0.2",
+        "model": "coupled_mass_geometry_sizing_v0.2",
+        "inputs": {
+            "payload_mass_kg": args.payload_kg,
+            "target_altitude_m": args.altitude_m,
+            "launch_latitude_deg": args.latitude_deg,
+            "stage1_propellant": args.stage1_prop,
+            "stage2_propellant": args.stage2_prop,
+            "stage1_diameter_m": args.stage1_diameter_m,
+            "stage2_diameter_m": args.stage2_diameter_m,
+        },
+        "outputs": {
+            "gross_liftoff_weight_kg": result.gross_liftoff_weight_kg,
+            "payload_ratio_percent": result.payload_ratio_percent,
+            "total_length_m": result.vehicle_geometry.total_length_m,
+            "fineness_ratio": result.vehicle_geometry.fineness_ratio,
+            "iterations_to_converge": result.iterations_to_converge,
+            "stage1": {
+                "name": result.stage1.name,
+                "propellant_mass_kg": result.stage1.propellant_mass_kg,
+                "total_dry_mass_kg": result.stage1.mass_breakdown.total_dry_mass_kg,
+                "length_m": result.stage1.geometry.total_length_m,
+                "diameter_m": result.stage1.geometry.diameter_m,
+                "effective_structural_fraction": result.stage1.effective_structural_fraction,
+            },
+            "stage2": {
+                "name": result.stage2.name,
+                "propellant_mass_kg": result.stage2.propellant_mass_kg,
+                "total_dry_mass_kg": result.stage2.mass_breakdown.total_dry_mass_kg,
+                "length_m": result.stage2.geometry.total_length_m,
+                "diameter_m": result.stage2.geometry.diameter_m,
+                "effective_structural_fraction": result.stage2.effective_structural_fraction,
+            },
+            "fairing": {
+                "diameter_m": result.vehicle_geometry.fairing.diameter_m,
+                "length_m": result.vehicle_geometry.fairing.total_length_m,
+            },
+        },
+        "exported_file": str(args.export_file) if args.export_file else None,
+        "assumptions": [
+            "standard 2:1 ellipsoidal tank bulkheads",
+            "coupled mass-geometry iterative convergence",
+            "bottom-up subsystem dry mass accounting",
+        ],
+    }
+
+
+def _run_inspect_project(args: argparse.Namespace) -> dict[str, object]:
+    return load_project(args.file)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return a process exit code."""
 
@@ -211,9 +308,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = _run_delta_v_budget(args)
         elif args.command == "two-stage-sizing":
             result = _run_two_stage_sizing(args)
+        elif args.command == "coupled-sizing":
+            result = _run_coupled_sizing(args)
+        elif args.command == "inspect-project":
+            result = _run_inspect_project(args)
         else:  # pragma: no cover - argparse enforces known commands.
             parser.error(f"unsupported command: {args.command}")
-    except ValueError as error:
+    except (ValueError, FileNotFoundError) as error:
         parser.error(str(error))
 
     print(json.dumps(result, indent=2, sort_keys=True))

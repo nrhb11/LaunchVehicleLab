@@ -66,3 +66,117 @@ class TwoStageVehicleResult:
     stage2: StageSizingResult
     gross_liftoff_weight_kg: float
     total_delta_v_m_per_s: float
+
+
+# --- V0.2 Physical, Propellant, and Geometry Domain Models ---
+
+
+@dataclass(frozen=True, slots=True)
+class PropellantSpec:
+    """Thermophysical properties of an individual propellant fluid."""
+
+    name: str
+    density_kg_per_m3: float
+    description: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class PropellantCombination:
+    """Bipropellant combination with operational mixture ratio and specific impulses."""
+
+    name: str
+    oxidizer: PropellantSpec
+    fuel: PropellantSpec
+    default_mixture_ratio_of: float  # O/F mass ratio
+    default_sea_level_isp_s: float
+    default_vacuum_isp_s: float
+
+
+@dataclass(frozen=True, slots=True)
+class TankGeometry:
+    """Cylindrical tank geometry with 2:1 ellipsoidal heads."""
+
+    diameter_m: float
+    cylinder_length_m: float
+    dome_height_m: float
+    total_length_m: float
+    volume_m3: float
+    surface_area_m2: float
+
+
+@dataclass(frozen=True, slots=True)
+class StageGeometry:
+    """Packaged geometry for an individual stage."""
+
+    diameter_m: float
+    total_length_m: float
+    oxidizer_tank: TankGeometry
+    fuel_tank: TankGeometry
+    intertank_length_m: float
+    skirt_length_m: float
+
+
+@dataclass(frozen=True, slots=True)
+class FairingGeometry:
+    """Payload fairing geometry with cylindrical body and ogive/conical nose."""
+
+    diameter_m: float
+    total_length_m: float
+    cylinder_length_m: float
+    nose_cone_length_m: float
+    surface_area_m2: float
+    internal_volume_m3: float
+
+
+@dataclass(frozen=True, slots=True)
+class VehicleGeometry:
+    """Overall launch vehicle dimensional packaging and fineness ratio."""
+
+    fairing: FairingGeometry
+    stage2: StageGeometry
+    interstage_length_m: float
+    stage1: StageGeometry
+    total_length_m: float
+    fineness_ratio: float  # total_length / stage1_diameter
+
+
+@dataclass(frozen=True, slots=True)
+class SubsystemMassBreakdown:
+    """Engineering mass accounting for all physical rocket subsystems."""
+
+    tanks_mass_kg: float
+    propulsion_mass_kg: float
+    avionics_mass_kg: float
+    interstage_mass_kg: float
+    fairing_mass_kg: float
+    residuals_and_margin_kg: float
+    total_dry_mass_kg: float
+
+
+@dataclass(frozen=True, slots=True)
+class CoupledStageResult:
+    """Comprehensive state of a sized, dimensioned, and mass-audited stage."""
+
+    name: str
+    propellant_combo: PropellantCombination
+    propellant_mass_kg: float
+    oxidizer_mass_kg: float
+    fuel_mass_kg: float
+    sizing: StageSizingResult
+    geometry: StageGeometry
+    mass_breakdown: SubsystemMassBreakdown
+    effective_structural_fraction: float
+
+
+@dataclass(frozen=True, slots=True)
+class CoupledVehicleResult:
+    """Final converged multi-disciplinary vehicle preliminary design solution."""
+
+    mission: MissionSpec
+    delta_v_budget: DeltaVBudget
+    vehicle_geometry: VehicleGeometry
+    stage1: CoupledStageResult
+    stage2: CoupledStageResult
+    gross_liftoff_weight_kg: float
+    payload_ratio_percent: float
+    iterations_to_converge: int

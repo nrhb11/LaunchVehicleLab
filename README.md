@@ -102,12 +102,11 @@ Validation ◄── Optimization ◄── Stability / Guidance ◄── Traje
   - [x] Initial domain dataclasses (`OrbitTarget`, `MissionSpec`, `DeltaVBudget`, `StageSpec`).
   - [x] Orbit circular velocity & launch $\Delta V$ budget model (`DeltaVBudget` in `core/delta_v.py`).
   - [x] Analytical two-stage sizing optimization under ideal assumptions (`core/staging.py`).
-  - [x] Documented 500 kg to 500 km LEO educational case study (`examples/two_stage_leo_500kg.py`).
-- [ ] **V0.2 — Mass Breakdown, Tank Geometry & Coupled Sizing**
-  - [ ] Subsystem mass models (structural fraction $\epsilon$, engine $T/W$, avionics, fairing).
-  - [ ] Tank sizing (propellant volume from densities & $O/F$ mixture ratio).
-  - [ ] Coupled mass-geometry sizing convergence coordinator.
-  - [ ] Human-readable `.lvlab` JSON project file format (serialization/deserialization).
+- [x] **V0.2 — Mass Breakdown, Tank Geometry & Coupled Sizing** *(Completed)*
+  - [x] Subsystem mass models (structural fraction $\epsilon$, engine $T/W$, avionics, fairing in `core/mass.py`).
+  - [x] Tank sizing (propellant volume from densities & $O/F$ mixture ratio in `core/geometry.py`).
+  - [x] Coupled mass-geometry sizing convergence coordinator (`application/coordinator.py`).
+  - [x] Human-readable `.lvlab` JSON project file format (`adapters/persistence.py`).
 - [ ] **V0.3 — Environment, Atmosphere & Low-Order Aerodynamics**
   - [ ] US Standard Atmosphere 1976 implementation (temperature, pressure, density, speed of sound vs altitude).
   - [ ] Dynamic pressure $q(t)$ calculation and Max-$Q$ detection.
@@ -253,31 +252,54 @@ lvlab two-stage-sizing \
   --stage2-eps 0.10
 ```
 
+Run multidisciplinary coupled mass-geometry vehicle sizing & export project:
+```bash
+lvlab coupled-sizing \
+  --payload-kg 500 \
+  --altitude-m 500000 \
+  --stage1-diameter-m 1.4 \
+  --stage2-diameter-m 1.4 \
+  --export-file my_launcher.lvlab
+```
+
+Inspect a saved `.lvlab` project file:
+```bash
+lvlab inspect-project --file my_launcher.lvlab
+```
+
 ### 5. Python API Usage
 
 ```python
+from launchvehiclelab.adapters import save_project
+from launchvehiclelab.application import run_coupled_sizing
 from launchvehiclelab.core import (
+    PROPELLANT_COMBINATIONS,
+    MissionSpec,
     OrbitTarget,
-    StageSpec,
-    calculate_delta_v_budget,
-    optimize_two_stage,
 )
 
-# 1. Compute velocity budget
-budget = calculate_delta_v_budget(
+# 1. Define mission: 500 kg to 500 km LEO
+mission = MissionSpec(
+    payload_mass_kg=500.0,
     target=OrbitTarget(altitude_m=500_000.0),
     launch_latitude_rad=0.4974,  # 28.5 deg
 )
-print(f"Required Target Delta-V: {budget.total_delta_v_m_per_s:.2f} m/s")
 
-# 2. Size optimal two-stage launcher
-vehicle = optimize_two_stage(
-    payload_mass_kg=500.0,
-    target_delta_v_m_per_s=budget.total_delta_v_m_per_s,
-    stage1_spec=StageSpec(name="Booster", specific_impulse_s=300.0, structural_fraction=0.08),
-    stage2_spec=StageSpec(name="Upper", specific_impulse_s=360.0, structural_fraction=0.10),
+# 2. Run coupled multidisciplinary sizing
+result = run_coupled_sizing(
+    mission=mission,
+    stage1_combo=PROPELLANT_COMBINATIONS["KEROLOX"],
+    stage2_combo=PROPELLANT_COMBINATIONS["METHALOX"],
+    stage1_diameter_m=1.4,
+    stage2_diameter_m=1.4,
 )
-print(f"Gross Liftoff Weight (GLOW): {vehicle.gross_liftoff_weight_kg:.1f} kg")
+
+print(f"Converged GLOW: {result.gross_liftoff_weight_kg:.1f} kg")
+print(f"Total Stack Length: {result.vehicle_geometry.total_length_m:.2f} m")
+print(f"Fineness Ratio (L/D): {result.vehicle_geometry.fineness_ratio:.1f}")
+
+# 3. Save project to schema-versioned JSON (.lvlab)
+save_project(result, "launcher.lvlab")
 ```
 
 ### 6. Canonical Educational Benchmark Case Study
