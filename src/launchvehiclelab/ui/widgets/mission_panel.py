@@ -1,4 +1,4 @@
-"""Apple Final Cut Pro inspired Mission Control Inspector Panel with Segmented Chips & Telemetry Gauges."""
+"""Apple HIG Pro Inspector Panel with Hero Stat Cards, Segmented Controls, and Telemetry."""
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
-    QSlider,
     QVBoxLayout,
     QWidget,
 )
@@ -20,7 +19,9 @@ from PySide6.QtWidgets import (
 from launchvehiclelab.core.domain import CoupledVehicleResult, TrajectoryPoint, TrajectoryResult
 from launchvehiclelab.ui.models import VehicleViewModel
 from launchvehiclelab.ui.theme import (
+    BG_BASE,
     BG_CARD,
+    BORDER_HAIRLINE,
     COLOR_ALERT_CORAL,
     COLOR_CYAN,
     COLOR_ELECTRIC_BLUE,
@@ -29,11 +30,54 @@ from launchvehiclelab.ui.theme import (
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
+    TEXT_TERTIARY,
 )
 
 
+class HeroMetricCard(QFrame):
+    """Apple HIG Hero Metric Stat Card with large display typography."""
+
+    def __init__(self, title: str, unit: str, initial_val: str = "--", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.unit = unit
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {BG_CARD};
+                border: 1px solid {BORDER_HAIRLINE};
+                border-radius: 8px;
+                padding: 4px;
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(1)
+
+        self.title_lbl = QLabel(title.upper())
+        self.title_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 8px; font-weight: 700; letter-spacing: 0.5px;")
+        layout.addWidget(self.title_lbl)
+
+        val_layout = QHBoxLayout()
+        val_layout.setContentsMargins(0, 0, 0, 0)
+        val_layout.setSpacing(3)
+        self.val_lbl = QLabel(initial_val)
+        self.val_lbl.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 15px; font-weight: 700; font-family: -apple-system, sans-serif;")
+        val_layout.addWidget(self.val_lbl)
+
+        self.unit_lbl = QLabel(unit)
+        self.unit_lbl.setStyleSheet(f"color: {COLOR_ELECTRIC_BLUE}; font-size: 10px; font-weight: 600;")
+        self.unit_lbl.setAlignment(Qt.AlignmentFlag.AlignBottom)
+        val_layout.addWidget(self.unit_lbl)
+        val_layout.addStretch()
+
+        layout.addLayout(val_layout)
+
+    def set_value(self, val_str: str) -> None:
+        self.val_lbl.setText(val_str)
+
+
 class TelemetryMeter(QWidget):
-    """Sleek Apple-style horizontal VU telemetry bar with value label."""
+    """Sleek Apple HIG level meter."""
 
     def __init__(self, label: str, unit: str, max_val: float, bar_color: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -41,14 +85,14 @@ class TelemetryMeter(QWidget):
         self.unit = unit
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 2, 0, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(0, 1, 0, 3)
+        layout.setSpacing(2)
 
         header_layout = QHBoxLayout()
         self.title_lbl = QLabel(label)
-        self.title_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        self.title_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 10px; font-weight: 600;")
         self.val_lbl = QLabel(f"0.0 {unit}")
-        self.val_lbl.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12px; font-weight: bold; font-family: monospace;")
+        self.val_lbl.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 11px; font-weight: bold; font-family: 'SF Mono', monospace;")
         header_layout.addWidget(self.title_lbl)
         header_layout.addStretch()
         header_layout.addWidget(self.val_lbl)
@@ -58,11 +102,11 @@ class TelemetryMeter(QWidget):
         self.bar.setRange(0, 1000)
         self.bar.setValue(0)
         self.bar.setTextVisible(False)
-        self.bar.setFixedHeight(5)
+        self.bar.setFixedHeight(4)
         self.bar.setStyleSheet(f"""
             QProgressBar {{
-                background-color: {BG_CARD};
-                border: 1px solid #27272a;
+                background-color: {BG_BASE};
+                border: 1px solid {BORDER_HAIRLINE};
                 border-radius: 2px;
             }}
             QProgressBar::chunk {{
@@ -79,7 +123,7 @@ class TelemetryMeter(QWidget):
 
 
 class MissionPanel(QWidget):
-    """Left-hand FCP inspector panel with segmented controls, mission inputs, and live telemetry."""
+    """Left-hand Apple HIG inspector panel with hero KPI cards, segmented selectors, and inputs."""
 
     def __init__(self, view_model: VehicleViewModel, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -92,6 +136,21 @@ class MissionPanel(QWidget):
         main_layout.setContentsMargins(8, 8, 8, 8)
         main_layout.setSpacing(10)
 
+        # -------------------------------------------------------------
+        # 1. Hero KPI Stat Cards Row (Apple Pro Style)
+        # -------------------------------------------------------------
+        hero_row = QHBoxLayout()
+        hero_row.setSpacing(6)
+
+        self.card_glow = HeroMetricCard("Liftoff GLOW", "t", "24.00")
+        self.card_maxq = HeroMetricCard("Max-Q Load", "kPa", "39.57")
+        self.card_len = HeroMetricCard("Stack Height", "m", "22.70")
+
+        hero_row.addWidget(self.card_glow)
+        hero_row.addWidget(self.card_maxq)
+        hero_row.addWidget(self.card_len)
+        main_layout.addLayout(hero_row)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
@@ -99,14 +158,14 @@ class MissionPanel(QWidget):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(14)
+        layout.setSpacing(12)
 
         # -------------------------------------------------------------
-        # Section 1: Target Mission Specification
+        # 2. Section 1: Mission Target Requirements
         # -------------------------------------------------------------
-        mission_group = QGroupBox("🛰️ Mission Specification")
+        mission_group = QGroupBox("🛰️ MISSION PARAMETERS")
         mission_form = QFormLayout(mission_group)
-        mission_form.setSpacing(8)
+        mission_form.setSpacing(6)
         mission_form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.payload_spin = QDoubleSpinBox()
@@ -132,15 +191,15 @@ class MissionPanel(QWidget):
         layout.addWidget(mission_group)
 
         # -------------------------------------------------------------
-        # Section 2: Propellant & Segmented Stage Architecture
+        # 3. Section 2: Stage Propulsion Architecture
         # -------------------------------------------------------------
-        prop_group = QGroupBox("🔥 Stage Propulsion && Sizing")
+        prop_group = QGroupBox("🔥 PROPULSION && SIZING")
         prop_layout = QVBoxLayout(prop_group)
-        prop_layout.setSpacing(10)
+        prop_layout.setSpacing(8)
 
-        # Stage 1 Propellant Segmented Chips
+        # Stage 1 Propellant Chips
         s1_lbl = QLabel("Stage 1 Booster Propellant")
-        s1_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        s1_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;")
         prop_layout.addWidget(s1_lbl)
 
         s1_seg_frame = QFrame()
@@ -160,9 +219,9 @@ class MissionPanel(QWidget):
             s1_seg_layout.addWidget(chip)
         prop_layout.addWidget(s1_seg_frame)
 
-        # Stage 2 Propellant Segmented Chips
+        # Stage 2 Propellant Chips
         s2_lbl = QLabel("Stage 2 Upper Stage Propellant")
-        s2_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 600;")
+        s2_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;")
         prop_layout.addWidget(s2_lbl)
 
         s2_seg_frame = QFrame()
@@ -182,9 +241,9 @@ class MissionPanel(QWidget):
             s2_seg_layout.addWidget(chip)
         prop_layout.addWidget(s2_seg_frame)
 
-        # Stage Diameters
+        # Diameters
         diam_form = QFormLayout()
-        diam_form.setSpacing(8)
+        diam_form.setSpacing(6)
 
         self.s1_diam_spin = QDoubleSpinBox()
         self.s1_diam_spin.setRange(0.6, 6.0)
@@ -204,23 +263,23 @@ class MissionPanel(QWidget):
         layout.addWidget(prop_group)
 
         # -------------------------------------------------------------
-        # Section 3: Action Trigger
+        # 4. Action Trigger Button
         # -------------------------------------------------------------
         self.run_button = QPushButton("⚡ Size Vehicle && Run 3DOF Ascent")
         self.run_button.setObjectName("PrimaryButton")
         self.run_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.run_button.setMinimumHeight(40)
+        self.run_button.setMinimumHeight(38)
         layout.addWidget(self.run_button)
 
         # -------------------------------------------------------------
-        # Section 4: Live Instantaneous Flight Telemetry HUD
+        # 5. Live Telemetry HUD Gauges
         # -------------------------------------------------------------
-        hud_group = QGroupBox("📟 Flight Telemetry HUD")
+        hud_group = QGroupBox("📟 FLIGHT TELEMETRY HUD")
         hud_layout = QVBoxLayout(hud_group)
-        hud_layout.setSpacing(8)
+        hud_layout.setSpacing(6)
 
         self.alt_meter = TelemetryMeter("Instant Altitude", "km", 500.0, COLOR_ELECTRIC_BLUE)
-        self.vel_meter = TelemetryMeter("Velocity", "m/s", 8000.0, COLOR_CYAN)
+        self.vel_meter = TelemetryMeter("Inertial Velocity", "m/s", 8000.0, COLOR_CYAN)
         self.dyn_meter = TelemetryMeter("Dynamic Pressure", "kPa", 50.0, COLOR_ALERT_CORAL)
         self.g_meter = TelemetryMeter("Axial G-Force", "g", 6.0, COLOR_FLIGHT_GREEN)
 
@@ -233,7 +292,7 @@ class MissionPanel(QWidget):
         layout.addStretch()
 
         scroll.setWidget(container)
-        main_layout.addWidget(scroll)
+        main_layout.addWidget(scroll, 1)
 
     def _bind_events(self) -> None:
         self.run_button.clicked.connect(self._on_run_clicked)
@@ -243,7 +302,6 @@ class MissionPanel(QWidget):
         self.vm.target_altitude_m = self.alt_spin.value() * 1000.0
         self.vm.launch_latitude_deg = self.lat_spin.value()
 
-        # Selected propellant chips
         s1_checked = self.s1_group.checkedButton()
         if s1_checked:
             self.vm.stage1_prop_name = s1_checked.text()
@@ -254,6 +312,12 @@ class MissionPanel(QWidget):
         self.vm.stage1_diameter_m = self.s1_diam_spin.value()
         self.vm.stage2_diameter_m = self.s2_diam_spin.value()
         self.vm.run_sizing_and_simulation()
+
+    def update_hero_cards(self, vehicle: CoupledVehicleResult, traj: TrajectoryResult) -> None:
+        """Update top Hero KPI metric cards after sizing."""
+        self.card_glow.set_value(f"{vehicle.gross_liftoff_weight_kg / 1000.0:.2f}")
+        self.card_maxq.set_value(f"{traj.max_q_pa / 1000.0:.1f}")
+        self.card_len.set_value(f"{vehicle.vehicle_geometry.total_length_m:.2f}")
 
     def update_telemetry_hud(self, point: TrajectoryPoint) -> None:
         """Update live telemetry meters from scrubbed trajectory sample."""

@@ -1,4 +1,4 @@
-"""Apple Final Cut Pro inspired Mission Event Inspector Table."""
+"""Apple HIG Inset Mission Event Stream Table with Status Jewels."""
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
@@ -23,11 +23,12 @@ from launchvehiclelab.ui.theme import (
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
+    TEXT_TERTIARY,
 )
 
 
 class EventsTable(QWidget):
-    """Interactive table displaying the chronological flight sequence with active event highlight."""
+    """Interactive table displaying the chronological flight sequence with status jewels."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -44,7 +45,7 @@ class EventsTable(QWidget):
             "Timecode",
             "Altitude",
             "Velocity",
-            "Milestone Event",
+            "Flight Milestone",
             "Physics & Subsystem Operations",
         ])
 
@@ -69,22 +70,24 @@ class EventsTable(QWidget):
         for row, ev in enumerate(traj.events):
             t_item = QTableWidgetItem(f"T+{ev.time_s:05.1f} s")
             t_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            t_item.setFont(QFont("SF Mono, Monaco, Menlo, monospace", 11, QFont.Weight.Bold))
+            t_item.setFont(QFont("SF Mono, Monaco, Menlo, monospace", 10, QFont.Weight.Bold))
             t_item.setForeground(QColor(COLOR_ELECTRIC_BLUE))
 
             alt_item = QTableWidgetItem(f"{ev.altitude_m / 1000.0:6.1f} km")
             alt_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            alt_item.setFont(QFont("SF Mono, Monaco, Menlo, monospace", 11))
+            alt_item.setFont(QFont("SF Mono, Monaco, Menlo, monospace", 10))
 
             v_item = QTableWidgetItem(f"{ev.velocity_m_per_s:6.1f} m/s")
             v_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            v_item.setFont(QFont("SF Mono, Monaco, Menlo, monospace", 11))
+            v_item.setFont(QFont("SF Mono, Monaco, Menlo, monospace", 10))
 
-            name_item = QTableWidgetItem(ev.name)
+            # Status Jewel + Event Name
+            jewel = "● "
+            name_item = QTableWidgetItem(jewel + ev.name)
             name_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            name_item.setFont(QFont("-apple-system", 11, QFont.Weight.Bold))
+            name_item.setFont(QFont("-apple-system", 10, QFont.Weight.Bold))
 
-            # Color coding
+            # Status color jewels
             if "Max-Q" in ev.name:
                 name_item.setForeground(QColor(COLOR_ALERT_CORAL))
             elif "Orbit" in ev.name or "Liftoff" in ev.name:
@@ -96,6 +99,7 @@ class EventsTable(QWidget):
 
             desc_item = QTableWidgetItem(ev.description)
             desc_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            desc_item.setFont(QFont("-apple-system", 10))
             desc_item.setForeground(QColor(TEXT_SECONDARY))
 
             self.table.setItem(row, 0, t_item)

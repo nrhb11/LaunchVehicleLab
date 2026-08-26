@@ -1,45 +1,51 @@
-"""Apple Final Cut Pro for iPad inspired dark-mode design system & stylesheet."""
+"""Apple Human Interface Guidelines (HIG) Pro Studio Design System."""
 
 # -------------------------------------------------------------
-# Color Palette Tokens (Apple Pro Video Suite)
+# Apple Pro Palette Tokens (True Black OLED & Frosted Glass)
 # -------------------------------------------------------------
 SPACE_BLACK = "#000000"
-BG_CANVAS = "#08080a"
-BG_PANEL = "#121214"
-BG_CARD = "#1c1c1e"
-BG_CARD_HOVER = "#242426"
-BG_ELEVATED = "#2c2c2e"
+BG_BASE = "#050507"
+BG_PANEL = "#0e0e11"
+BG_CARD = "#161619"
+BG_CARD_HOVER = "#1e1e23"
+BG_ELEVATED = "#26262b"
 
-BORDER_SUBTLE = "#27272a"
-BORDER_ACCENT = "#3f3f46"
-BORDER_GLOW = "rgba(10, 132, 255, 0.4)"
+BORDER_HAIRLINE = "#232328"
+BORDER_FOCUS = "#0A84FF"
+BORDER_CARD = "#1c1c21"
 
-TEXT_PRIMARY = "#ffffff"
+# Backward compatibility aliases
+BG_CANVAS = BG_BASE
+BORDER_SUBTLE = BORDER_HAIRLINE
+BORDER_ACCENT = BORDER_HAIRLINE
+
+# Typography Colors
+TEXT_PRIMARY = "#f4f4f5"
 TEXT_SECONDARY = "#a1a1aa"
 TEXT_TERTIARY = "#71717a"
 TEXT_MUTED = "#52525b"
 
-# Accent Colors (Apple Neon Pro System)
+# Apple Pro Accents
 COLOR_ELECTRIC_BLUE = "#0A84FF"
 COLOR_FLIGHT_GREEN = "#30D158"
 COLOR_ALERT_CORAL = "#FF453A"
 COLOR_SUNSET_AMBER = "#FF9F0A"
 COLOR_METHANE_VIOLET = "#BF5AF2"
-COLOR_HYDROLOX_ROSE = "#FF375F"
 COLOR_CYAN = "#64D2FF"
+COLOR_GOLD = "#FFD60A"
 
-# Propellant Aesthetic Colors
+# Propellant Aesthetic Colors (Technical Aerospace)
 PROPELLANT_COLORS = {
-    "LOX": "#38BDF8",       # Liquid Oxygen Electric Cyan
-    "RP1": "#F59E0B",       # Kerosene Amber Gold
-    "CH4": "#A855F7",       # Liquid Methane Neon Violet
-    "LH2": "#EC4899",       # Liquid Hydrogen Bright Rose
-    "FAIRING": "#64748B",   # Carbon Composite Slate
-    "STRUCTURE": "#334155", # Aerospace Titanium
+    "LOX": "#38BDF8",       # Liquid Oxygen Cyan
+    "RP1": "#F59E0B",       # Kerosene Amber
+    "CH4": "#A855F7",       # Methane Purple
+    "LH2": "#EC4899",       # Liquid Hydrogen Rose
+    "FAIRING": "#64748B",   # Carbon Composite
+    "STRUCTURE": "#334155", # Titanium / Al-Li
 }
 
 # -------------------------------------------------------------
-# Apple Final Cut Pro Dark Theme QSS Stylesheet
+# Apple Human Interface Guidelines Pro Stylesheet
 # -------------------------------------------------------------
 FCP_STYLESHEET = f"""
 QMainWindow, QDialog {{
@@ -56,17 +62,17 @@ QWidget {{
     selection-color: #ffffff;
 }}
 
-/* Top Navigation & Toolbars */
+/* Top Navigation Menu */
 QMenuBar {{
     background-color: {BG_PANEL};
-    border-bottom: 1px solid {BORDER_SUBTLE};
-    padding: 4px 8px;
+    border-bottom: 1px solid {BORDER_HAIRLINE};
+    padding: 3px 6px;
     font-size: 12px;
 }}
 QMenuBar::item {{
-    padding: 6px 12px;
+    padding: 5px 10px;
     background: transparent;
-    border-radius: 6px;
+    border-radius: 5px;
     color: {TEXT_SECONDARY};
 }}
 QMenuBar::item:selected {{
@@ -76,71 +82,65 @@ QMenuBar::item:selected {{
 
 QToolBar {{
     background-color: {BG_PANEL};
-    border-bottom: 1px solid {BORDER_SUBTLE};
+    border-bottom: 1px solid {BORDER_HAIRLINE};
     padding: 6px 12px;
     spacing: 8px;
 }}
 
 QStatusBar {{
     background-color: {BG_PANEL};
-    border-top: 1px solid {BORDER_SUBTLE};
+    border-top: 1px solid {BORDER_HAIRLINE};
     color: {TEXT_SECONDARY};
     font-size: 12px;
-    padding: 6px 14px;
+    padding: 5px 12px;
 }}
 
-/* Frosted Acrylic Group Cards */
+/* Inset Grouped Section Cards */
 QGroupBox {{
-    background-color: {BG_PANEL};
-    border: 1px solid {BORDER_SUBTLE};
+    background-color: {BG_CARD};
+    border: 1px solid {BORDER_HAIRLINE};
     border-radius: 12px;
-    margin-top: 26px;
-    padding: 16px 14px 14px 14px;
+    margin-top: 22px;
+    padding: 14px 12px 12px 12px;
     font-weight: 600;
 }}
 QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 0 10px;
+    padding: 0 8px;
     color: {COLOR_ELECTRIC_BLUE};
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
 }}
 
-/* Buttons & Segmented Chips */
+/* Primary & Action Buttons */
 QPushButton {{
     background-color: {BG_CARD};
     color: {TEXT_PRIMARY};
-    border: 1px solid {BORDER_SUBTLE};
+    border: 1px solid {BORDER_HAIRLINE};
     border-radius: 8px;
-    padding: 8px 16px;
+    padding: 7px 14px;
     font-weight: 500;
     font-size: 13px;
 }}
 QPushButton:hover {{
     background-color: {BG_CARD_HOVER};
-    border-color: {BORDER_ACCENT};
+    border-color: {BORDER_HAIRLINE};
 }}
 QPushButton:pressed {{
     background-color: {BG_ELEVATED};
-}}
-QPushButton:checked {{
-    background-color: {COLOR_ELECTRIC_BLUE};
-    color: #ffffff;
-    border-color: {COLOR_ELECTRIC_BLUE};
-    font-weight: 600;
 }}
 
 QPushButton#PrimaryButton {{
     background-color: {COLOR_ELECTRIC_BLUE};
     color: #ffffff;
     border: 1px solid {COLOR_ELECTRIC_BLUE};
-    border-radius: 10px;
-    font-size: 14px;
+    border-radius: 8px;
+    font-size: 13px;
     font-weight: 600;
-    padding: 10px 20px;
+    padding: 9px 16px;
 }}
 QPushButton#PrimaryButton:hover {{
     background-color: #2693ff;
@@ -152,23 +152,23 @@ QPushButton#PrimaryButton:pressed {{
 QPushButton#TransportButton {{
     background-color: {BG_CARD};
     color: {TEXT_PRIMARY};
-    border: 1px solid {BORDER_SUBTLE};
-    border-radius: 18px;
-    min-width: 36px;
-    max-width: 36px;
-    min-height: 36px;
-    max-height: 36px;
-    font-size: 16px;
+    border: 1px solid {BORDER_HAIRLINE};
+    border-radius: 16px;
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    font-size: 14px;
 }}
 QPushButton#TransportButton:hover {{
     background-color: {BG_ELEVATED};
     border-color: {COLOR_ELECTRIC_BLUE};
 }}
 
-/* Segmented Pill Chip Style */
+/* Apple Segmented Pill Selector */
 QFrame#SegmentedGroup {{
-    background-color: {BG_CANVAS};
-    border: 1px solid {BORDER_SUBTLE};
+    background-color: {BG_BASE};
+    border: 1px solid {BORDER_HAIRLINE};
     border-radius: 8px;
     padding: 2px;
 }}
@@ -177,9 +177,10 @@ QPushButton#SegmentChip {{
     color: {TEXT_SECONDARY};
     border: none;
     border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }}
 QPushButton#SegmentChip:hover {{
     color: {TEXT_PRIMARY};
@@ -189,30 +190,30 @@ QPushButton#SegmentChip:checked {{
     background-color: {BG_CARD};
     color: {COLOR_ELECTRIC_BLUE};
     font-weight: 700;
-    border: 1px solid {BORDER_SUBTLE};
+    border: 1px solid {BORDER_HAIRLINE};
 }}
 
-/* Spinboxes, LineEdits, and Inputs */
+/* Input Controls */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
-    background-color: {BG_CARD};
+    background-color: {BG_BASE};
     color: {TEXT_PRIMARY};
-    border: 1px solid {BORDER_SUBTLE};
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 13px;
+    border: 1px solid {BORDER_HAIRLINE};
+    border-radius: 7px;
+    padding: 5px 8px;
+    font-size: 12px;
 }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {{
     border: 1px solid {COLOR_ELECTRIC_BLUE};
-    background-color: {BG_CARD_HOVER};
+    background-color: {BG_CARD};
 }}
 
 QComboBox::drop-down {{
     border: none;
-    padding-right: 8px;
+    padding-right: 6px;
 }}
 QComboBox QAbstractItemView {{
     background-color: {BG_CARD};
-    border: 1px solid {BORDER_ACCENT};
+    border: 1px solid {BORDER_HAIRLINE};
     border-radius: 8px;
     selection-background-color: {COLOR_ELECTRIC_BLUE};
     selection-color: #ffffff;
@@ -221,50 +222,47 @@ QComboBox QAbstractItemView {{
 
 /* Sliders */
 QSlider::groove:horizontal {{
-    height: 6px;
-    background: {BG_CARD};
-    border: 1px solid {BORDER_SUBTLE};
-    border-radius: 3px;
+    height: 4px;
+    background: {BG_BASE};
+    border: 1px solid {BORDER_HAIRLINE};
+    border-radius: 2px;
 }}
 QSlider::sub-page:horizontal {{
     background: {COLOR_ELECTRIC_BLUE};
-    border-radius: 3px;
+    border-radius: 2px;
 }}
 QSlider::handle:horizontal {{
     background: #ffffff;
-    border: 2px solid {COLOR_ELECTRIC_BLUE};
-    width: 16px;
-    margin-top: -6px;
-    margin-bottom: -6px;
-    border-radius: 8px;
-}}
-QSlider::handle:horizontal:hover {{
-    background: #e0f2fe;
-    transform: scale(1.1);
+    border: 1.5px solid {COLOR_ELECTRIC_BLUE};
+    width: 14px;
+    margin-top: -5px;
+    margin-bottom: -5px;
+    border-radius: 7px;
 }}
 
-/* Tabs (FCP Floating Bar Style) */
+/* Tab Widget (Apple Segmented Bar Style) */
 QTabWidget::pane {{
-    border: 1px solid {BORDER_SUBTLE};
+    border: 1px solid {BORDER_HAIRLINE};
     border-radius: 12px;
     background-color: {BG_PANEL};
     top: -1px;
 }}
 QTabBar::tab {{
-    background: {BG_CANVAS};
+    background: {BG_BASE};
     color: {TEXT_SECONDARY};
-    padding: 8px 18px;
-    border: 1px solid {BORDER_SUBTLE};
+    padding: 7px 16px;
+    border: 1px solid {BORDER_HAIRLINE};
     border-bottom: none;
-    border-top-left-radius: 8px;
-    border-top-right-radius: 8px;
-    margin-right: 4px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    margin-right: 3px;
+    font-size: 12px;
     font-weight: 500;
 }}
 QTabBar::tab:selected {{
     background: {BG_PANEL};
     color: {TEXT_PRIMARY};
-    border-color: {BORDER_SUBTLE};
+    border-color: {BORDER_HAIRLINE};
     border-bottom: 2px solid {COLOR_ELECTRIC_BLUE};
     font-weight: 600;
 }}
@@ -273,31 +271,32 @@ QTabBar::tab:hover:!selected {{
     background: {BG_CARD};
 }}
 
-/* Tables (Apple Inset List Style) */
+/* Tables (Apple Inset Card Style) */
 QTableWidget {{
     background-color: {BG_PANEL};
     border: none;
     border-radius: 8px;
-    gridline-color: {BORDER_SUBTLE};
+    gridline-color: {BORDER_HAIRLINE};
 }}
 QTableWidget::item {{
-    padding: 8px;
-    border-bottom: 1px solid {BORDER_SUBTLE};
+    padding: 7px;
+    border-bottom: 1px solid {BORDER_HAIRLINE};
+    font-size: 12px;
 }}
 QTableWidget::item:selected {{
-    background-color: rgba(10, 132, 255, 0.2);
+    background-color: rgba(10, 132, 255, 0.15);
     color: {TEXT_PRIMARY};
 }}
 QHeaderView::section {{
     background-color: {BG_CARD};
     color: {TEXT_SECONDARY};
-    padding: 8px;
+    padding: 7px;
     border: none;
-    border-bottom: 1px solid {BORDER_SUBTLE};
-    font-size: 11px;
+    border-bottom: 1px solid {BORDER_HAIRLINE};
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
 }}
 
 /* Scrollbars */
@@ -307,9 +306,9 @@ QScrollBar:vertical {{
     margin: 0;
 }}
 QScrollBar::handle:vertical {{
-    background: {BORDER_ACCENT};
+    background: {BORDER_HAIRLINE};
     border-radius: 3px;
-    min-height: 24px;
+    min-height: 20px;
 }}
 QScrollBar::handle:vertical:hover {{
     background: {TEXT_MUTED};
@@ -319,9 +318,11 @@ QScrollBar:horizontal {{
     height: 6px;
     margin: 0;
 }}
+QScrollBar::handle:horizontal {{
+    background: {BORDER_HAIRLINE};
+    border-radius: 3px;
+    min-width: 20px;
+}}
 """
 
-# Alias for backward compatibility
 DARK_STYLESHEET = FCP_STYLESHEET
-
-

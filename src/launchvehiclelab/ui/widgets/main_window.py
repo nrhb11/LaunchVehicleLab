@@ -144,6 +144,8 @@ class MainWindow(QMainWindow):
         self.trajectory_view.update_trajectory(traj)
         self.events_table.update_events(traj)
         self.scrubber_bar.set_trajectory(traj)
+        if self.vm.current_vehicle is not None:
+            self.mission_panel.update_hero_cards(self.vm.current_vehicle, traj)
 
     def _on_time_scrubbed(self, time_s: float) -> None:
         """Synchronize playhead across canvas, trajectory plots, telemetry HUD, and events."""
