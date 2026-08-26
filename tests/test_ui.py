@@ -1,15 +1,16 @@
 import os
 from pathlib import Path
+from PySide6.QtGui import QImage, QPainter
 from PySide6.QtWidgets import QApplication
 import pytest
 
 from launchvehiclelab.ui.app import main as app_main
 from launchvehiclelab.ui.models import VehicleViewModel
+from launchvehiclelab.ui.widgets.rocket_canvas import RocketCanvas
 
 
 @pytest.fixture(scope="session")
 def qapp() -> QApplication:
-    # Set offscreen platform for headless test environments
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     app = QApplication.instance()
     if app is None:
@@ -55,6 +56,21 @@ def test_vehicle_view_model_persistence(qapp: QApplication, tmp_path: Path) -> N
     success = vm2.load_from_file(saved_path)
     assert success is True
     assert vm2.payload_mass_kg == 750.0
+
+
+def test_rocket_canvas_rendering(qapp: QApplication) -> None:
+    vm = VehicleViewModel()
+    vm.run_sizing_and_simulation()
+    assert vm.current_vehicle is not None
+
+    canvas = RocketCanvas()
+    canvas.resize(400, 600)
+    canvas.set_vehicle(vm.current_vehicle)
+
+    # Render offscreen image to trigger paintEvent
+    img = QImage(400, 600, QImage.Format.Format_ARGB32)
+    canvas.render(img)
+    assert not img.isNull()
 
 
 def test_app_headless_entrypoint(qapp: QApplication) -> None:

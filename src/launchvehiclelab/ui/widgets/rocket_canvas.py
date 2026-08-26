@@ -105,11 +105,11 @@ class RocketCanvas(QWidget):
         right_base = QPointF(center_x + f_dia_px / 2.0, cur_y + f_len_px)
 
         fairing_path.moveTo(top_pt)
-        fairing_path.quadTo(center_x - f_dia_px * 0.4, cur_y + f_nose_px * 0.6, left_shoulder)
+        fairing_path.quadTo(QPointF(center_x - f_dia_px * 0.4, cur_y + f_nose_px * 0.6), left_shoulder)
         fairing_path.lineTo(left_base)
         fairing_path.lineTo(right_base)
         fairing_path.lineTo(right_shoulder)
-        fairing_path.quadTo(center_x + f_dia_px * 0.4, cur_y + f_nose_px * 0.6, top_pt)
+        fairing_path.quadTo(QPointF(center_x + f_dia_px * 0.4, cur_y + f_nose_px * 0.6), top_pt)
         fairing_path.closeSubpath()
 
         # Gradient fill
