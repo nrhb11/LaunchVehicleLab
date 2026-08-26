@@ -115,11 +115,12 @@ Validation ◄── Optimization ◄── Stability / Guidance ◄── Traje
   - [x] Discrete event state machine (Liftoff, Pitchover, Transonic, Max-$Q$, MECO, Staging, Fairing Jettison, SECO, Orbit Injection).
   - [x] Canonical 0-to-Orbit numerical flight simulation benchmark study (`examples/two_stage_leo_500kg.py`).
 
-### Phase 2: Desktop Application & Multidisciplinary Expansion
-- [ ] **V0.5 — PySide6/QML Desktop Application Beta**
-  - [ ] Declarative QML interface for mission parameters and vehicle inspection.
-  - [ ] Real-time interactive plots (PyQtGraph / Matplotlib) for trajectory and sensitivity analysis.
-  - [ ] Single-binary standalone packaging (via `pyside6-deploy` / PyInstaller).
+- [x] **V0.5 — PySide6 Desktop Application Beta** *(Completed)*
+  - [x] Modern dark-glassmorphism macOS native interface (`ui/theme.py`, `ui/widgets/main_window.py`).
+  - [x] Real-time 2D vector rocket blueprint canvas with dimension callouts (`ui/widgets/rocket_canvas.py`).
+  - [x] Interactive multi-curve flight dynamics plots and Max-Q annotation (`ui/widgets/trajectory_view.py`).
+  - [x] Chronological flight mission event sequence timeline table (`ui/widgets/events_table.py`).
+  - [x] Full `.lvlab` project persistence integration and `lvlab-gui` executable command.
 - [ ] **V0.6 — Structural Margins & CG/CP Static Stability**
   - [ ] Tank pressure/bending stress checks.
   - [ ] Time-varying Center of Gravity $X_{cg}(t)$ and Center of Pressure $X_{cp}(t)$ tracking.
@@ -222,7 +223,16 @@ pytest
 lvlab --version
 ```
 
-### 4. Running Analyses via CLI
+### 4. Interactive Desktop GUI (PySide6)
+
+Launch the modern macOS native desktop visual application:
+```bash
+lvlab-gui
+# or:
+python -m launchvehiclelab.ui
+```
+
+### 5. Running Analyses via CLI
 
 Calculate ideal $\Delta V$:
 ```bash

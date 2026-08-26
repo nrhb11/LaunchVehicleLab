@@ -18,7 +18,10 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.14",
 ]
-dependencies = []
+dependencies = [
+  "pyside6>=6.7.0",
+  "matplotlib>=3.8.0",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -27,6 +30,7 @@ dev = [
 
 [project.scripts]
 lvlab = "launchvehiclelab.cli:main"
+lvlab-gui = "launchvehiclelab.ui.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
