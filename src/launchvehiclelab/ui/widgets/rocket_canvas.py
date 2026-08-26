@@ -354,10 +354,27 @@ class RocketCanvas(QWidget):
         painter.setPen(QPen(QColor("#27272a"), 1.0))
         painter.drawPath(path)
 
-        # Label inside tank
+        # Label inside tank with clean multi-line layout
         painter.setPen(QColor("#ffffff"))
-        painter.setFont(QFont("-apple-system", 10, QFont.Weight.DemiBold))
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
+        painter.setFont(QFont("-apple-system", 9, QFont.Weight.Bold))
+        # Split into name and mass
+        if "(" in label and ")" in label:
+            name_part = label.split("(")[0].strip()
+            mass_part = "(" + label.split("(")[1]
+            painter.drawText(
+                QRectF(cx - width_px / 2.0, top_y + height_px * 0.25, width_px, height_px * 0.3),
+                Qt.AlignmentFlag.AlignCenter,
+                name_part,
+            )
+            painter.setFont(QFont("-apple-system", 8, QFont.Weight.Medium))
+            painter.setPen(QColor(TEXT_PRIMARY))
+            painter.drawText(
+                QRectF(cx - width_px / 2.0, top_y + height_px * 0.55, width_px, height_px * 0.3),
+                Qt.AlignmentFlag.AlignCenter,
+                mass_part,
+            )
+        else:
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, label)
 
     def _draw_engine_skirt(
         self,

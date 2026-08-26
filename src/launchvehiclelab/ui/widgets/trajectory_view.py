@@ -60,7 +60,7 @@ class TrajectoryView(QWidget):
 
         # Tab 3: Velocity & Mach Number
         self.canvas_v = self._create_canvas()
-        self.tabs.addTab(self.canvas_v, "⚡ Velocity & Mach")
+        self.tabs.addTab(self.canvas_v, "⚡ Velocity && Mach")
 
         # Tab 4: Axial G-Force
         self.canvas_g = self._create_canvas()

@@ -134,7 +134,7 @@ class MissionPanel(QWidget):
         # -------------------------------------------------------------
         # Section 2: Propellant & Segmented Stage Architecture
         # -------------------------------------------------------------
-        prop_group = QGroupBox("🔥 Stage Propulsion & Sizing")
+        prop_group = QGroupBox("🔥 Stage Propulsion && Sizing")
         prop_layout = QVBoxLayout(prop_group)
         prop_layout.setSpacing(10)
 
@@ -206,7 +206,7 @@ class MissionPanel(QWidget):
         # -------------------------------------------------------------
         # Section 3: Action Trigger
         # -------------------------------------------------------------
-        self.run_button = QPushButton("⚡ Size Vehicle & Run 3DOF Ascent")
+        self.run_button = QPushButton("⚡ Size Vehicle && Run 3DOF Ascent")
         self.run_button.setObjectName("PrimaryButton")
         self.run_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.run_button.setMinimumHeight(40)
