@@ -100,6 +100,26 @@ def test_flight_scrubber_bar(qapp: QApplication) -> None:
     assert bar._is_playing is False
 
 
+def test_trajectory_view_stacked_switching(qapp: QApplication) -> None:
+    from launchvehiclelab.ui.widgets.trajectory_view import TrajectoryView
+    vm = VehicleViewModel()
+    vm.run_sizing_and_simulation()
+    assert vm.current_trajectory is not None
+
+    view = TrajectoryView()
+    view.resize(600, 450)
+    view.update_trajectory(vm.current_trajectory)
+
+    # Test switching views
+    view._on_view_selected(1)  # Max-Q
+    assert view.stack.currentIndex() == 1
+    view._on_view_selected(4)  # Event table
+    assert view.stack.currentIndex() == 4
+
+    # Test tracking beacon update
+    view.set_flight_time(74.9)
+
+
 def test_app_headless_entrypoint(qapp: QApplication) -> None:
     exit_code = app_main(["lvlab-gui", "--headless-check"])
     assert exit_code == 0

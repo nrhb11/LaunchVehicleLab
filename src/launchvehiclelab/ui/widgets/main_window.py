@@ -70,16 +70,12 @@ class MainWindow(QMainWindow):
         self.rocket_canvas.setMinimumWidth(340)
         splitter.addWidget(self.rocket_canvas)
 
-        # Right Panel: Multi-view Trajectory & Mission Event Log
-        right_tabs = QTabWidget()
+        # Right Panel: Unified Apple Pro Telemetry & Flight Event Dashboard
         self.trajectory_view = TrajectoryView()
-        self.events_table = EventsTable()
+        self.trajectory_view.setMinimumWidth(480)
+        splitter.addWidget(self.trajectory_view)
 
-        right_tabs.addTab(self.trajectory_view, "📊 Ascent Dynamics")
-        right_tabs.addTab(self.events_table, "⏱️ Event Timeline")
-        splitter.addWidget(right_tabs)
-
-        splitter.setSizes([340, 420, 620])
+        splitter.setSizes([350, 400, 630])
         root_layout.addWidget(splitter, 1)
 
         # -------------------------------------------------------------
@@ -142,7 +138,6 @@ class MainWindow(QMainWindow):
         self._current_trajectory = traj
         self.rocket_canvas.set_trajectory(traj)
         self.trajectory_view.update_trajectory(traj)
-        self.events_table.update_events(traj)
         self.scrubber_bar.set_trajectory(traj)
         if self.vm.current_vehicle is not None:
             self.mission_panel.update_hero_cards(self.vm.current_vehicle, traj)
@@ -151,7 +146,6 @@ class MainWindow(QMainWindow):
         """Synchronize playhead across canvas, trajectory plots, telemetry HUD, and events."""
         self.rocket_canvas.set_flight_time(time_s)
         self.trajectory_view.set_flight_time(time_s)
-        self.events_table.highlight_event_at_time(time_s)
 
         # Interpolate instantaneous telemetry point
         if self._current_trajectory and self._current_trajectory.points:
